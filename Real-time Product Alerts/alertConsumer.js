@@ -2,8 +2,8 @@ const { Kafka } = require("kafkajs")
 const Redis = require("ioredis")
 
 // Kafka and Redis config
-const KAFKA_BROKER = "localhost:9092"
-const REDIS_HOST = "localhost"
+const KAFKA_BROKER = "kafka:29092"
+const REDIS_HOST = "redis"
 
 const kafka = new Kafka({
   clientId: "alert-consumer",
