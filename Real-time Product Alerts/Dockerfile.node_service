@@ -5,4 +5,4 @@ COPY . /app
 
 RUN npm install kafkajs ioredis
 
-CMD ["node", "alert_consumer.js"]
+CMD ["node", "alertConsumer.js"]
