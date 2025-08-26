@@ -112,25 +112,25 @@
         
     
     
-# def anagrams(word1, word2):
-#     if word1 is None or word2 is None:
-#         return False
+def anagrams(word1, word2):
+    if word1 is None or word2 is None:
+        return False
     
-#     if len(word1) != len(word2):
-#         return False
+    if len(word1) != len(word2):
+        return False
     
-#     word1Array = list(word1)
-#     # print(word1Array)
-#     word2helper = set(word2)
+    word1Array = list(word1)
+    # print(word1Array)
+    word2helper = set(word2)
     
-#     for letter in word1Array:
-#         if letter not in word2helper:
-#             return False
-#         word2helper.remove(letter)
+    for letter in word1Array:
+        if letter not in word2helper:
+            return False
+        word2helper.remove(letter)
         
-#     return True
+    return True
 
-# print(anagrams("silent", "listen"))
+print(anagrams("silent", "listen"))
 
 
 
@@ -185,7 +185,7 @@ class Node:
         self.val = val
         self.next = next
         
-       1 -> 2 ->3 ->4  
+    #    1 -> 2 ->3 ->4  
         
 def reverse(head):
     if head is None:
@@ -199,6 +199,7 @@ def reverse(head):
         new_head.next = node
         node = node.next
     return new_head
+
         
         
         
