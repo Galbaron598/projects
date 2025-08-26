@@ -1,18 +1,11 @@
-version: "3.8"
-
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
-    container_name: zookeeper
     ports:
       - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka
     depends_on:
       - zookeeper
     ports:
@@ -27,42 +20,48 @@ services:
 
   redis:
     image: redis:7.2
-    container_name: redis
     ports:
       - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
 
   producer:
-    build: ./producer
-    container_name: producer
+    build:
+      context: .
+      dockerfile: Dockerfile.python_service
+    command: python producer.py
     depends_on:
       - kafka
 
   sales_consumer:
-    build: ./sales_consumer
-    container_name: sales_consumer
+    build:
+      context: .
+      dockerfile: Dockerfile.python_service
+    command: python sales_consumer.py
     depends_on:
       - kafka
       - redis
 
   alert_consumer:
-    build: ./alert_consumer
-    container_name: alert_consumer
+    build:
+      context: .
+      dockerfile: Dockerfile.node_service
     depends_on:
       - kafka
       - redis
 
   alert_service:
-    build: ./alert_service
-    container_name: alert_service
+    build:
+      context: .
+      dockerfile: Dockerfile.python_service
     ports:
       - "4000:4000"
+    command: uvicorn alert_service:app --host 0.0.0.0 --port 4000
     depends_on:
       - redis
 
   alerts_ui:
-    build: ./alerts_ui
-    container_name: alerts_ui
+    build:
+      context: .
+      dockerfile: Dockerfile.alerts_ui
     ports:
       - "3000:3000"
     depends_on:
