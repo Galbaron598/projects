@@ -5,7 +5,7 @@ import json
 app = FastAPI()
 
 # Connect to Redis
-r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+r = redis.Redis(host="redis", port=6379, decode_responses=True)
 
 @app.get("/alerts")
 def get_alerts():

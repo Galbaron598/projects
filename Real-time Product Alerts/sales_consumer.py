@@ -3,12 +3,12 @@ import redis, json, time, uuid
 from datetime import datetime, timezone
 
 # Connect to Redis
-r = redis.Redis(host="localhost", port=6379, db=0)
+r = redis.Redis(host="redis", port=6379, db=0)
 
 # Kafka Consumer (sales topic)
 consumer = KafkaConsumer(
     "sales",
-    bootstrap_servers="localhost:9092",
+    bootstrap_servers="kafka:29092",
     value_deserializer=lambda m: json.loads(m.decode("utf-8")),
     auto_offset_reset="earliest",
     enable_auto_commit=True,
@@ -16,7 +16,7 @@ consumer = KafkaConsumer(
 
 # Kafka Producer (for alerts)
 producer = KafkaProducer(
-    bootstrap_servers="localhost:9092",
+    bootstrap_servers="kafka:29092",
     value_serializer=lambda v: json.dumps(v).encode("utf-8"),
 )
 
@@ -47,7 +47,7 @@ for msg in consumer:
             "product_id": product_id,
             "total_sales_last_5m": total,
             "threshold": THRESHOLD,
-            "timestamp": datetime.now(datetime.timezone.utc).replace(tzinfo=timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         producer.send("alerts", alert_event)
         print("⚠️ Sent alert event:", alert_event)

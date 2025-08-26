@@ -1,3 +1,5 @@
+version: "2.4"
+
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -7,6 +9,10 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 5s
+      retries: 10
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -23,28 +29,42 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 5s
+      retries: 10
 
   redis:
     image: redis:7.2
     ports:
       - "6379:6379"
-
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
   producer:
     build:
       context: .
       dockerfile: Dockerfile.python_service
     command: python producer.py
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 
   sales_consumer:
     build:
       context: .
+
       dockerfile: Dockerfile.python_service
     command: python sales_consumer.py
     depends_on:
-      - kafka
-      - redis
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   alert_consumer:
     build:
@@ -52,8 +72,10 @@ services:
       dockerfile: Dockerfile.node_service
     command: node alertConsumer.js
     depends_on:
-      - kafka
-      - redis
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   alert_service:
     build:
@@ -63,7 +85,8 @@ services:
       - "4000:4000"
     command: uvicorn alert_service:app --host 0.0.0.0 --port 4000
     depends_on:
-      - redis
+     redis:
+      condition: service_healthy
 
   alerts_ui:
     build:
