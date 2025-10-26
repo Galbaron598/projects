@@ -112,25 +112,25 @@
         
     
     
-def anagrams(word1, word2):
-    if word1 is None or word2 is None:
-        return False
+# def anagrams(word1, word2):
+#     if word1 is None or word2 is None:
+#         return False
     
-    if len(word1) != len(word2):
-        return False
+#     if len(word1) != len(word2):
+#         return False
     
-    word1Array = list(word1)
-    # print(word1Array)
-    word2helper = set(word2)
+#     word1Array = list(word1)
+#     # print(word1Array)
+#     word2helper = set(word2)
     
-    for letter in word1Array:
-        if letter not in word2helper:
-            return False
-        word2helper.remove(letter)
+#     for letter in word1Array:
+#         if letter not in word2helper:
+#             return False
+#         word2helper.remove(letter)
         
-    return True
+#     return True
 
-print(anagrams("silent", "listen"))
+# print(anagrams("silent", "listen"))
 
 
 
@@ -180,25 +180,161 @@ print(anagrams("silent", "listen"))
   
   
   
-class Node:
-    def __init__(self,val,next):
-        self.val = val
-        self.next = next
+# class Node:
+#     def __init__(self,val,next):
+#         self.val = val
+#         self.next = next
         
-    #    1 -> 2 ->3 ->4  
+#     #    1 -> 2 ->3 ->4  
         
-def reverse(head):
-    if head is None:
-        return None
+# def reverse(head):
+#     if head is None:
+#         return None
     
-    node = head
-    new_head = head
+#     node = head
+#     new_head = head
     
-    while node: 
-        new_head = node.next
-        new_head.next = node
-        node = node.next
-    return new_head
+#     while node: 
+#         new_head = node.next
+#         new_head.next = node
+#         node = node.next
+#     return new_head
+
+
+# class Solution(object):
+#     def longestConsecutive(nums):
+#         if nums is None: 
+#             return "nums is no given"
+#         if nums == []:
+#             return "nums is empty"
+        
+#         nums_helper = set(nums)
+#         max_output=1
+        
+#         for num in nums:
+#             if num-1 not in nums_helper:
+#                 new_num = num+1
+#                 output =1                
+#                 while new_num in nums_helper:
+#                     output +=1  
+#                     max_output = max(max_output, output)
+#                     new_num = new_num +1
+            
+#         return max_output
+    
+#     print(longestConsecutive([100,4,200,1,3,2]))
+
+# def characterReplacement(s,k):
+#     if s is None or s=='':
+#         return False
+    
+#     if k is None: 
+#         return False
+    
+#     output = 0
+#     hashHelper = {}
+#     maxFreqChar =0 
+#     left=0
+    
+#     for right in range(len(s)):
+#         hashHelper[s[right]] = hashHelper.get(s[right], 0) + 1
+#         maxFreqChar =  max(hashHelper[s[right]],maxFreqChar)
+        
+#         while (right-left+1) - maxFreqChar >k:
+#             hashHelper[s[left]] -=1
+#             left+=1
+            
+#         output = max(output,right-left+1)
+#     return output
+
+# print(characterReplacement("Gal", 2))
+
+# def numIslands(grid):
+#     if grid is None:
+#         return False
+    
+#     numRows = len(grid)
+#     numCol = len(grid[0])
+#     output  = 0
+    
+#     gridHelp = [[False for _ in range(numCol)] for _ in range(numRows)]
+    
+#     newdir = [(1,0), (-1,0), (0,1), (0,-1)]
+    
+    
+#     def checkNeighbours(r, c):
+#         if gridHelp[r][c] == True:
+#             return
+        
+#         gridHelp[r][c] = True
+        
+#         for newdir_r, newdir_c in newdir:
+#                 if 0<=r+newdir_r<numRows and 0<=c+newdir_c<numCol:
+#                     if grid[r+newdir_r][c+newdir_c] == '1' and  gridHelp[r+newdir_r][c+newdir_c] == False:
+#                       checkNeighbours(r+newdir_r,c+newdir_c)
+                    
+        
+        
+#     for r in range(len(grid)):
+#         for c in range(len(grid[0])):
+#             if grid[r][c] == '1' and  gridHelp[r][c] == False:
+#                 output +=1
+#                 checkNeighbours(r,c)
+             
+#     return output
+
+# print(numIslands([
+#   ["1","1","1","1","0"],
+#   ["1","1","0","1","0"],
+#   ["1","1","0","0","0"],
+#   ["0","0","0","0","0"]
+# ]))
+
+def reverseWords(s):
+    stringArray = s.split(' ')
+    stringArray.reverse()
+
+    output = ' '.join(word for word in stringArray if word)
+
+    # for word in stringArrtay:
+    #     if word != '':
+    #         output.join(word)
+
+    
+    
+    return output
+
+print(reverseWords("a good   example"))
+
+            
+                    
+                
+            
+                
+                
+            
+                
+            
+
+
+            
+            
+            
+        
+      
+                
+                
+    
+    
+    
+    
+    
+    
+     
+                
+            
+            
+            
 
         
         
