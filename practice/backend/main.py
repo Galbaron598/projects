@@ -29,13 +29,18 @@ def get_capacity_by_label(label_id):
     
 
 @app.get("/api/capacity")
-def get_capacity():
+async def get_capacity():
     output = []
-    for label in LABELS:
-        toAppand ={"label":label["name"],"capacity":get_capacity_by_label(label["id"])  }
-        # output[label["name"]] = get_capacity_by_label(label["id"])
-        output.append(toAppand)
-    return output
+    try:
+        for label in LABELS:
+            toAppend ={"label":label["name"],"capacity":get_capacity_by_label(label["id"])  }
+            # output[label["name"]] = get_capacity_by_label(label["id"])
+            output.append(toAppend)
+        return output
+    except Exception as e:
+        print("not working:", e)
+        raise 'error ${e}' 
+   
 
         
         
