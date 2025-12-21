@@ -17,6 +17,83 @@
 # print(longestConsecutive([100, 4, 200, 1, 3, 2]))  # Output: 4 (sequence: 1, 2, 3, 4)
 
 
+# class Countdown():
+#     def __init__(self, n):
+#         self.countdown_number =  n
+#         self.current_loop = n+1
+    
+#     def __iter__(self):
+#         self.current_loop = self.countdown_number+1
+#         return self
+               
+#     def __next__(self):
+#         if self.current_loop == 0 :
+#             raise StopIteration
+        
+#         self.current_loop -= 1
+#         return self.current_loop
+    
+    
+# a=Countdown(3)
+
+# for i in a:
+#     print(i)
+
+# for i in a:
+#     print(i)    
+         
+# import time
+# class Timer():
+#     def __init__(self,name):
+#         self.blockCode = name
+#         self.startTime = None
+#         self.endTime = None
+        
+#     def __enter__(self):
+#         self.startTime = time.time()
+        
+#     def __exit__(self, exc_type, exc_val, exc_tb):
+#         self.endTime = time.time()
+#         durationTime = round(self.endTime - self.startTime, 1)
+#         print (f'{self.blockCode} took {durationTime} seconds')
+    
+# with Timer("Sleep block"):
+#     # Simulate logic
+#     time.sleep(1.5)
+
+def productExceptSelf(nums):
+    if nums is None:
+        return "oh no!"
+    
+    if nums == []:
+         return "oh no!"
+     
+    output = [1] * len(nums)
+     
+    prefix = 1
+    for i in range(len(nums)):
+        output[i] = prefix
+        prefix *= nums[i]
+        
+    suffix = 1
+    for i in range(len(nums) -1, -1,-1):
+        output[i] *= suffix
+        suffix *=  nums[i]
+        
+    return output
+
+print(productExceptSelf([1,2,3,4]))
+        
+     
+        
+    
+    
+        
+    
+        
+
+
+
 
     
     
