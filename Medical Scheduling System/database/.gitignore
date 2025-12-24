@@ -1,0 +1,17 @@
+# ============================================
+# DATABASE GITIGNORE
+# ============================================
+
+# Database dumps
+*.sql.dump
+*.dump
+*.backup
+
+# Database files (if using SQLite for testing)
+*.db
+*.sqlite
+*.sqlite3
+
+# Don't ignore schema and seed files
+!schema.sql
+!seed_data.sql

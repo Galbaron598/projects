@@ -1,0 +1,59 @@
+# ============================================
+# ROOT GITIGNORE - Common patterns for all services
+# ============================================
+
+# Environment files (CRITICAL!)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.venv
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Node modules (if you add frontend)
+node_modules/
+package-lock.json
+
+# Build directories
+build/
+dist/
+*.egg-info/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
