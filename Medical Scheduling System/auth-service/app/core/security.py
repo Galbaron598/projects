@@ -1,30 +1,37 @@
-from datetime import datetime, timedelta
-from jose import JWTError, jwt
-from app.core.config import get_settings
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import jwt
+from app.core.config import JWT_SECRET, user_sessions
 
-settings = get_settings()
+security = HTTPBearer()
 
-def create_access_token(data: dict) -> str:
-    """Create JWT access token"""
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=settings.JWT_EXPIRATION_MINUTES)
-    to_encode.update({"exp": expire})
-    
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.JWT_SECRET_KEY,
-        algorithm=settings.JWT_ALGORITHM
-    )
-    return encoded_jwt
 
-def verify_token(token: str) -> dict:
-    """Verify and decode JWT token"""
+def decode_token(token: str) -> str:
+    """Decode JWT token and return phone number"""
     try:
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        return payload['phone_number']
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token has expired"
         )
-        return payload
-    except JWTError:
-        return None
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid token"
+        )
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Dependency to get current authenticated user"""
+    token = credentials.credentials
+    phone_number = decode_token(token)
+    
+    if phone_number not in user_sessions:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    return phone_number

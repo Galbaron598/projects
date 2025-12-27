@@ -1,41 +1,39 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import auth
-from app.core.config import get_settings
+from app.routes import auth
 
-settings = get_settings()
-
+# Initialize FastAPI app
 app = FastAPI(
-    title="Medical Scheduling - Auth Service",
-    description="Authentication and authorization service",
+    title="Medical Scheduling Auth Service",
+    description="Authentication service with OTP and JWT",
     version="1.0.0"
 )
 
-# CORS
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],  # In production, specify exact origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routes
-app.include_router(auth.router)
+# Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+
 
 @app.get("/")
 async def root():
+    """Root endpoint with API information"""
     return {
-        "service": settings.SERVICE_NAME,
-        "status": "running",
-        "docs": "/docs"
+        "name": "Medical Scheduling Auth Service",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "endpoints": {
+            "request_otp": "POST /api/auth/request-otp",
+            "verify_otp": "POST /api/auth/verify-otp",
+            "get_user": "GET /api/auth/me",
+            "logout": "POST /api/auth/logout",
+            "health": "GET /api/auth/health"
+        }
     }
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=settings.PORT,
-        reload=settings.DEBUG
-    )

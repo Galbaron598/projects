@@ -15,16 +15,16 @@ CREATE TABLE patients (
     is_active BOOLEAN DEFAULT true
 );
 
--- OTP Codes
-CREATE TABLE otp_codes (
-    id SERIAL PRIMARY KEY,
-    phone_number VARCHAR(20) NOT NULL,
-    otp_code VARCHAR(6) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP + INTERVAL '5 minutes',
-    is_verified BOOLEAN DEFAULT false,
-    attempts INT DEFAULT 0
-);
+-- -- OTP Codes
+-- CREATE TABLE otp_codes (
+--     id SERIAL PRIMARY KEY,
+--     phone_number VARCHAR(20) NOT NULL,
+--     otp_code VARCHAR(6) NOT NULL,
+--     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+--     expires_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP + INTERVAL '5 minutes',
+--     is_verified BOOLEAN DEFAULT false,
+--     attempts INT DEFAULT 0
+-- );
 
 -- Medical Fields
 CREATE TABLE medical_fields (

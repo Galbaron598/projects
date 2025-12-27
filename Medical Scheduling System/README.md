@@ -72,6 +72,9 @@ createdb medical_scheduling
 # Load schema
 psql medical_scheduling < database/schema.sql
 
+# Load Seed Data
+psql medical_scheduling < database/seed_data.sql
+
 # Verify
 psql medical_scheduling -c "\dt"
 ```
@@ -79,11 +82,11 @@ psql medical_scheduling -c "\dt"
 ### 3. Setup Auth Service
 ```bash
 cd auth-service
-python -m venv venv
+python -m venv venv  # on MacOs - python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your database credentials
+# Edit .env with your database credentials !!! delete this line!!
 python main.py
 ```
 ✅ Auth service running on http://localhost:8000
@@ -91,11 +94,11 @@ python main.py
 ### 4. Setup API Service
 ```bash
 cd api-service
-python -m venv venv
+python -m venv venv # on MacOs - python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your database credentials
+# Edit .env with your database credentials !!!!delete this!! 
 python main.py
 ```
 ✅ API service running on http://localhost:8001

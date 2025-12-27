@@ -134,24 +134,34 @@ Response:
 ```
 auth-service/
 ├── app/
+│   ├── __init__.py
 │   ├── api/
+│   │   ├── __init__.py
 │   │   └── routes/
-│   │       └── auth.py          # Auth endpoints
+│   │       ├── __init__.py
+│   │       └── auth.py
 │   ├── core/
-│   │   ├── config.py            # Configuration
-│   │   ├── database.py          # DB connection
-│   │   └── security.py          # JWT utilities
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   └── security.py
 │   ├── schemas/
-│   │   └── auth.py              # Request/response models
+│   │   ├── __init__.py
+│   │   └── auth.py
 │   └── services/
-│       └── otp_service.py       # OTP logic
-├── tests/
-│   └── test_auth.py
-├── .env
-├── .env.example
+│       ├── __init__.py
+│       ├── otp_service.py
+│       └── token_service.py
+├── tests/                    
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── test_otp_service.py
+│   ├── test_token_service.py
+│   └── test_auth_routes.py
 ├── main.py
 ├── requirements.txt
-└── README.md
+├── requirements-test.txt
+└── pytest.ini
 ```
 
 ## 🧪 Testing
