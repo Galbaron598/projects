@@ -26,7 +26,6 @@ import { useAuthStore } from '../store/authStore'
 import { appointmentsAPI } from '../services/api'
 import { formatDate, formatTime, getRelativeDate, getStatusColor } from '../utils/helpers'
 import { message } from 'antd'
-import { message } from 'antd'
 import "../styles/Dashboard.css"
 import Error from '../components/Error'
 
