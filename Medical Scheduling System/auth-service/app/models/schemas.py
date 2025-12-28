@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict
 
 
 class RequestOTPRequest(BaseModel):
     phoneNumber: str = Field(..., description="Phone number for OTP")
     
-    @validator('phoneNumber')
+    @field_validator('phoneNumber')
     def validate_phone_number(cls, v):
         if not v:
             raise ValueError('Phone number is required')

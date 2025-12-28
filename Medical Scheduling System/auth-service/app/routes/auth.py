@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.models.schemas import (
     RequestOTPRequest,
@@ -15,7 +15,7 @@ from app.models.schemas import (
 )
 from app.core.config import otp_store, user_sessions, OTP_EXPIRY_MINUTES
 from app.core.security import get_current_user
-from app.utils.auth_utils import generate_otp, generate_token
+from app.utils.auth_utils import generate_otp, generate_token, verify_token
 
 router = APIRouter()
 
@@ -32,7 +32,7 @@ async def request_otp(request: RequestOTPRequest):
     
     # Generate OTP
     otp = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
+    expires_at =  datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
     
     # Store OTP
     otp_store[phone_number] = {
@@ -74,7 +74,7 @@ async def verify_otp(request: VerifyOTPRequest):
     stored_otp = otp_store[phone_number]
     
     # Check if OTP is expired
-    if datetime.utcnow() > stored_otp['expires_at']:
+    if datetime.now(timezone.utc) > stored_otp['expires_at']:
         del otp_store[phone_number]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -97,7 +97,7 @@ async def verify_otp(request: VerifyOTPRequest):
     if is_new_user:
         user_sessions[phone_number] = {
             'phone_number': phone_number,
-            'created_at': datetime.utcnow().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'appointments': []
         }
     
@@ -122,7 +122,7 @@ async def verify_otp(request: VerifyOTPRequest):
     )
 
 
-@router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
+@router.get("/profile", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def get_user_info(current_user: str = Depends(get_current_user)):
     """
     Get current user information
