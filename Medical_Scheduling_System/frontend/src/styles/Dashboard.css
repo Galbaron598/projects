@@ -1,0 +1,170 @@
+/* Dashboard page styles */
+.dashboard-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden; /* prevent horizontal scroll if something misbehaves */
+}
+
+/* Ensure AntD grid items can shrink (important for overflow issues) */
+.dashboard-container .ant-row,
+.dashboard-container .ant-col {
+  min-width: 0;
+}
+
+/* Generic fix: allow any flex item to shrink instead of overflow */
+.dashboard-container * {
+  min-width: 0;
+}
+
+.dashboard-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 32px;
+}
+
+/* Prevent banner text from pushing layout */
+.dashboard-banner-title,
+.dashboard-banner-subtitle {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.dashboard-banner-title {
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.dashboard-banner-subtitle {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  margin-bottom: 0;
+}
+
+.dashboard-welcome-card {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.dashboard-welcome-icon {
+  font-size: 64px;
+  color: #1890ff;
+  margin-bottom: 16px;
+}
+
+.dashboard-welcome-title {
+  margin-bottom: 16px;
+}
+
+.dashboard-welcome-text {
+  max-width: 600px;
+  margin: 0 auto 24px;
+}
+
+.dashboard-services-title {
+  margin-bottom: 16px;
+}
+
+.dashboard-service-card {
+  transition: all 0.3s ease;
+}
+
+.dashboard-service-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-service-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.dashboard-specialty-card {
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.dashboard-specialty-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-specialty-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.dashboard-appointment-card {
+  margin-bottom: 16px;
+}
+
+/* Critical: appointment content (doctor/location) may be long */
+.dashboard-appointment-card .ant-typography,
+.dashboard-appointment-card .ant-typography * {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* If you have a location line, clamp it so it doesn't explode height */
+.dashboard-appointment-location {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;   /* show max 2 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dashboard-appointment-icon {
+  color: #1890ff;
+  font-size: 20px;
+}
+
+.dashboard-quick-action-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.dashboard-quick-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-quick-action-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+/* Make inner Card padding a bit tighter on small screens */
+@media (max-width: 768px) {
+  .dashboard-banner {
+    padding: 24px;
+  }
+
+  .dashboard-banner-title {
+    font-size: 24px;
+  }
+
+  .dashboard-welcome-card {
+    padding: 32px 16px;
+  }
+
+  .dashboard-welcome-icon {
+    font-size: 48px;
+  }
+
+  /* Reduce inner card padding to avoid cramped overflow */
+  .dashboard-container .ant-card-body {
+    padding: 16px;
+  }
+}
+
+/* Very small screens: ensure no horizontal scroll from tags/spaces */
+@media (max-width: 420px) {
+  .dashboard-container .ant-space {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-container .ant-tag {
+    max-width: 100%;
+  }
+}
