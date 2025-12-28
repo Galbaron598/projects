@@ -1,0 +1,99 @@
+/* Layout component styles */
+.layout-container {
+    min-height: 100vh;
+  }
+  
+  .layout-sider {
+    overflow: auto;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+  }
+  
+  .layout-logo {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 20px;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .layout-logo-icon {
+    margin-right: 8px;
+  }
+  
+  .layout-header {
+    padding: 0 24px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  
+  .layout-header-left {
+    display: flex;
+    align-items: center;
+  }
+  
+  .layout-header-title {
+    margin: 0;
+    font-size: 18px;
+  }
+  
+  .layout-mobile-menu-button {
+    margin-right: 16px;
+  }
+  
+  .layout-user-menu {
+    cursor: pointer;
+  }
+  
+  .layout-content {
+    margin: 24px 16px;
+    padding: 24px;
+    min-height: 280px;
+  }
+  
+  .layout-footer {
+    text-align: center;
+    background: #fff;
+    padding: 16px 0;
+  }
+  
+  /* Responsive */
+  @media (max-width: 992px) {
+    .layout-sider {
+      position: fixed !important;
+      z-index: 999;
+    }
+  }
+  
+  @media (min-width: 992px) {
+    .layout-mobile-menu-button {
+      display: none;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .layout-header {
+      padding: 0 16px;
+    }
+    
+    .layout-header-title {
+      font-size: 16px;
+    }
+    
+    .layout-content {
+      margin: 16px 8px;
+      padding: 16px;
+    }
+  }

@@ -230,12 +230,3 @@ curl http://localhost:8000/
 psql medical_scheduling -c "\d appointments"
 # Should show unique_doctor_time constraint
 ```
-
-## 📝 Future Improvements
-
-- [ ] Appointment reminders
-- [ ] Doctor reviews and ratings
-- [ ] Appointment history export
-- [ ] Recurring appointments
-- [ ] Waiting list feature
-- [ ] Payment integration

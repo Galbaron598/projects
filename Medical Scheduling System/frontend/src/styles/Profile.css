@@ -1,0 +1,124 @@
+/* Profile page styles */
+.profile-container {
+    width: 100%;
+  }
+  
+  .profile-header-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 32px;
+  }
+  
+  .profile-header-avatar {
+    width: 80px;
+    height: 80px;
+    background-color: #fff;
+    color: #1890ff;
+  }
+  
+  .profile-header-name {
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  
+  .profile-header-phone {
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .profile-info-card {
+    margin-bottom: 24px;
+  }
+  
+  .profile-section-icon {
+    margin-right: 8px;
+  }
+  
+  .profile-form {
+    margin-top: 16px;
+  }
+  
+  .profile-family-card {
+    margin-bottom: 24px;
+  }
+  
+  .profile-family-description {
+    margin-bottom: 16px;
+  }
+  
+  .profile-family-empty {
+    color: rgba(0, 0, 0, 0.45);
+  }
+  
+  .profile-family-list-item {
+    padding: 16px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .profile-family-list-item:last-child {
+    border-bottom: none;
+  }
+  
+  .profile-family-avatar {
+    background-color: #f0f0f0;
+    color: #1890ff;
+  }
+  
+  .profile-family-name {
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  
+  .profile-family-relationship {
+    color: rgba(0, 0, 0, 0.45);
+    display: block;
+    margin-bottom: 2px;
+  }
+  
+  .profile-family-dob {
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 12px;
+    display: block;
+  }
+  
+  .profile-medical-card {
+    margin-bottom: 24px;
+  }
+  
+  .profile-medical-inner-card {
+    margin-bottom: 16px;
+  }
+  
+  .profile-medical-inner-card:last-child {
+    margin-bottom: 0;
+  }
+  
+  .profile-medical-title {
+    margin-bottom: 8px;
+  }
+  
+  .profile-medical-empty {
+    color: rgba(0, 0, 0, 0.45);
+  }
+  
+  /* Modal */
+  .profile-add-member-form {
+    margin-top: 16px;
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .profile-header-card {
+      padding: 24px;
+    }
+    
+    .profile-header-avatar {
+      width: 64px;
+      height: 64px;
+    }
+    
+    .profile-header-name {
+      font-size: 20px;
+    }
+  }

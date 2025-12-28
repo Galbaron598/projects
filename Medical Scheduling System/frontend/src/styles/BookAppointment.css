@@ -1,0 +1,118 @@
+/* Book Appointment page styles */
+.booking-container {
+    width: 100%;
+  }
+  
+  .booking-steps-card {
+    margin-bottom: 24px;
+  }
+  
+  .booking-content-card {
+    margin-bottom: 24px;
+  }
+  
+  .booking-actions-card {
+    margin-top: 24px;
+  }
+  
+  .booking-specialty-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid #d9d9d9;
+  }
+  
+  .booking-specialty-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .booking-specialty-card.selected {
+    border-color: #1890ff;
+    background-color: #e6f7ff;
+  }
+  
+  .booking-specialty-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+  
+  .booking-specialty-title {
+    margin-bottom: 4px;
+  }
+  
+  .booking-doctor-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid #d9d9d9;
+  }
+  
+  .booking-doctor-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .booking-doctor-card.selected {
+    border-color: #1890ff;
+    background-color: #e6f7ff;
+  }
+  
+  .booking-doctor-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #1890ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 24px;
+  }
+  
+  .booking-doctor-name {
+    margin: 0;
+  }
+  
+  .booking-doctor-qualification {
+    color: rgba(0, 0, 0, 0.45);
+  }
+  
+  .booking-doctor-info {
+    margin-top: 8px;
+  }
+  
+  .booking-time-slots-container {
+    max-height: 300px;
+    overflow: auto;
+  }
+  
+  .booking-confirmation-info {
+    margin-bottom: 24px;
+  }
+  
+  .booking-note-card {
+    background: #e6f7ff;
+    border-color: #91d5ff;
+    margin-top: 16px;
+  }
+  
+  .booking-note-icon {
+    color: #1890ff;
+    font-size: 20px;
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .booking-specialty-icon {
+      font-size: 28px;
+    }
+    
+    .booking-doctor-avatar {
+      width: 48px;
+      height: 48px;
+      font-size: 20px;
+    }
+    
+    .booking-time-slots-container {
+      max-height: 250px;
+    }
+  }

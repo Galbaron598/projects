@@ -1,0 +1,99 @@
+/* Appointments page styles */
+.appointments-container {
+    width: 100%;
+  }
+  
+  .appointments-header {
+    margin-bottom: 24px;
+  }
+  
+  .appointments-title {
+    margin-bottom: 8px;
+  }
+  
+  .appointments-subtitle {
+    color: rgba(0, 0, 0, 0.45);
+  }
+  
+  .appointments-search {
+    margin-bottom: 16px;
+  }
+  
+  .appointments-tabs {
+    margin-bottom: 16px;
+  }
+  
+  .appointment-card {
+    margin-bottom: 16px;
+    transition: all 0.3s ease;
+  }
+  
+  .appointment-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .appointment-icon {
+    font-size: 24px;
+    color: #1890ff;
+    margin-right: 12px;
+  }
+  
+  .appointment-title {
+    margin: 0;
+    margin-bottom: 4px;
+  }
+  
+  .appointment-status-tag {
+    margin-left: 8px;
+  }
+  
+  .appointment-doctor {
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  
+  .appointment-time-info {
+    margin-bottom: 8px;
+  }
+  
+  .appointment-location {
+    font-size: 12px;
+  }
+  
+  .appointment-actions {
+    text-align: right;
+  }
+  
+  .appointment-action-button {
+    margin-bottom: 8px;
+  }
+  
+  .appointments-empty {
+    padding: 40px 20px;
+    text-align: center;
+  }
+  
+  /* Modal */
+  .appointment-cancel-modal-content {
+    margin-top: 16px;
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .appointment-card {
+      margin-bottom: 12px;
+    }
+    
+    .appointment-icon {
+      font-size: 20px;
+    }
+    
+    .appointment-actions {
+      margin-top: 16px;
+      text-align: left;
+    }
+    
+    .appointment-action-button {
+      width: 100%;
+    }
+  }
