@@ -54,3 +54,13 @@ class HealthResponse(BaseModel):
     timestamp: str
     activeOTPs: int
     activeUsers: int
+
+
+class ValidateTokenRequest(BaseModel):
+    token: str
+
+
+class ValidateTokenResponse(BaseModel):
+    valid: bool
+    phoneNumber: Optional[str] = None
+    error: Optional[str] = None

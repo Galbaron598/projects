@@ -14,6 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/appointments", tags=["Appointments"])
 
+# @router.get("", response_model=List[AppointmentResponse])
 @router.get("/", response_model=List[AppointmentResponse])
 async def get_appointments(
     user: dict = Depends(verify_token),
@@ -253,6 +254,7 @@ async def get_appointment(
             detail="Failed to retrieve appointment"
         )
 
+# @router.post("", response_model=AppointmentResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=AppointmentResponse, status_code=status.HTTP_201_CREATED)
 async def create_appointment(
     appointment: AppointmentCreate,

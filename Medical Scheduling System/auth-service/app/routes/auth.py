@@ -9,7 +9,9 @@ from app.models.schemas import (
     UserResponse,
     MessageResponse,
     HealthResponse,
-    UserInfo
+    UserInfo,
+    ValidateTokenResponse,
+    ValidateTokenRequest
 )
 from app.core.config import otp_store, user_sessions, OTP_EXPIRY_MINUTES
 from app.core.security import get_current_user
@@ -164,3 +166,23 @@ async def health_check():
         activeOTPs=len(otp_store),
         activeUsers=len(user_sessions)
     )
+
+
+@router.post("/validate-token", response_model=ValidateTokenResponse)
+async def validate_token_endpoint(request: ValidateTokenRequest):
+    """
+    Validate JWT token (for internal services / microservices)
+    """
+    try:
+        payload = verify_token(request.token)
+
+        return ValidateTokenResponse(
+            valid=True,
+            phoneNumber=payload.get("sub")
+        )
+
+    except Exception as e:
+        return ValidateTokenResponse(
+            valid=False,
+            error=str(e)
+        )
