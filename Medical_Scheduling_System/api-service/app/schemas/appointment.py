@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 class AppointmentCreate(BaseModel):
+    patient_id: int = Field(..., gt=0)
     doctor_id: int = Field(..., gt=0)
     medical_field_id: int = Field(..., gt=0)
     appointment_time: datetime
@@ -12,6 +13,7 @@ class AppointmentCreate(BaseModel):
     reason_for_visit: Optional[str] = Field(None, max_length=500)
     
     @field_validator("appointment_time")
+    @classmethod
     def validate_future_time(cls, v):
         now = datetime.now(timezone.utc)
         # Ensure v is aware; if naive, assume UTC
@@ -49,9 +51,4 @@ class AppointmentUpdate(BaseModel):
     status: Optional[str] = Field(None, pattern='^(scheduled|confirmed|cancelled|completed|no_show)$')
     notes: Optional[str] = Field(None, max_length=1000)
     cancellation_reason: Optional[str] = Field(None, max_length=500)
-
-class AppointmentStats(BaseModel):
-    total_appointments: int
-    upcoming_appointments: int
-    completed_appointments: int
-    cancelled_appointments: int
+    appointment_time: Optional[datetime] = None

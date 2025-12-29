@@ -77,7 +77,7 @@ CREATE TABLE appointments (
 );
 
 -- Indexes
-CREATE INDEX idx_patients_phone ON patients(phone_number);
+CREATE UNIQUE INDEX idx_patients_phone ON patients(phone_number);
 CREATE INDEX idx_doctors_medical_field ON doctors(medical_field_id);
 CREATE INDEX idx_doctors_available ON doctors(is_available);
 CREATE INDEX idx_appointments_patient ON appointments(patient_id, appointment_time DESC);

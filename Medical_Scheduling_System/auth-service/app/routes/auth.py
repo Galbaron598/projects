@@ -122,22 +122,22 @@ async def verify_otp(request: VerifyOTPRequest):
     )
 
 
-@router.get("/profile", response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def get_user_info(current_user: str = Depends(get_current_user)):
-    """
-    Get current user information
+# @router.get("/profile", response_model=UserResponse, status_code=status.HTTP_200_OK)
+# async def get_user_info(current_user: str = Depends(get_current_user)):
+#     """
+#     Get current user information
     
-    Requires valid JWT token in Authorization header.
-    """
-    user_data = user_sessions[current_user]
+#     Requires valid JWT token in Authorization header.
+#     """
+#     user_data = user_sessions[current_user]
     
-    return UserResponse(
-        user=UserInfo(
-            phoneNumber=user_data['phone_number'],
-            createdAt=user_data['created_at'],
-            isNewUser=len(user_data['appointments']) == 0
-        )
-    )
+#     return UserResponse(
+#         user=UserInfo(
+#             phoneNumber=user_data['phone_number'],
+#             createdAt=user_data['created_at'],
+#             isNewUser=len(user_data['appointments']) == 0
+#         )
+#     )
 
 
 @router.post("/logout", response_model=MessageResponse, status_code=status.HTTP_200_OK)
@@ -153,19 +153,19 @@ async def logout(current_user: str = Depends(get_current_user)):
     return MessageResponse(message="Logged out successfully")
 
 
-@router.get("/health", response_model=HealthResponse, status_code=status.HTTP_200_OK)
-async def health_check():
-    """
-    Health check endpoint
+# @router.get("/health", response_model=HealthResponse, status_code=status.HTTP_200_OK)
+# async def health_check():
+#     """
+#     Health check endpoint
     
-    Returns service status and statistics.
-    """
-    return HealthResponse(
-        status="OK",
-        timestamp=datetime.utcnow().isoformat(),
-        activeOTPs=len(otp_store),
-        activeUsers=len(user_sessions)
-    )
+#     Returns service status and statistics.
+#     """
+#     return HealthResponse(
+#         status="OK",
+#         timestamp=datetime.now(timezone.utc).isoformat(),
+#         activeOTPs=len(otp_store),
+#         activeUsers=len(user_sessions)
+#     )
 
 
 @router.post("/validate-token", response_model=ValidateTokenResponse)

@@ -1,114 +1,158 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Row, Col, Typography, Button, Space, Tag, Empty } from 'antd'
-import {
-  CalendarOutlined,
-  ClockCircleOutlined,
-  PlusOutlined,
-  HeartOutlined,
-  ExperimentOutlined,
-  MedicineBoxOutlined,
-  UserOutlined,
-  EyeOutlined,
-  ApiOutlined,
-} from '@ant-design/icons'
+import { CalendarOutlined, ClockCircleOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../store/authStore'
-import { appointmentsAPI } from '../services/api'
+import { appointmentsAPI, patientsAPI, medicalFieldsAPI } from '../services/api'
 import { getRelativeDate, getStatusColor } from '../utils/helpers'
+import { resolveMedicalIconComponent } from '../utils/medicalIcons'
 import '../styles/Dashboard.css'
 import Error from '../components/Error'
 import Loading from '../components/Loading'
 
 const { Title, Text, Paragraph } = Typography
 
+const SERVICE_COLORS = ['#ff4d4f', '#722ed1', '#1890ff', '#eb2f96', '#13c2c2', '#52c41a', '#fa8c16', '#2f54eb']
+const pickColor = (idx) => SERVICE_COLORS[idx % SERVICE_COLORS.length]
+
+const formatTimeFromISO = (isoString) => {
+  if (!isoString) return ''
+  const d = new Date(isoString)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+const formatDateForRelative = (isoString) => {
+  if (!isoString) return ''
+  const d = new Date(isoString)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+const normalizeUpcoming = (rows) =>
+  (rows || []).map((a) => ({
+    id: a.id,
+    specialty: a.medical_field_name ?? a.specialty ?? 'Appointment',
+    doctor: a.doctor_name ?? a.doctor ?? 'Doctor',
+    appointment_time: a.appointment_time,
+    date: formatDateForRelative(a.appointment_time),
+    time: formatTimeFromISO(a.appointment_time),
+    status: a.status ?? 'scheduled',
+    duration_minutes: a.duration_minutes,
+    location: a.location ?? null,
+    consultation_fee: a.consultation_fee ?? null,
+  }))
+
+const normalizeMedicalFields = (rows) => {
+  const arr = Array.isArray(rows) ? rows : []
+  return arr.map((f, idx) => ({
+    id: f.id ?? `${f.medical_field_name ?? f.name ?? 'service'}-${idx}`,
+    name: f.medical_field_name ?? f.name ?? 'Medical Service',
+    description: f.description ?? '',
+    icon: f.icon ?? null, // string from backend
+    is_active: f.is_active ?? true,
+    color: pickColor(idx),
+  }))
+}
+
 const Dashboard = () => {
   const user = useAuthStore((state) => state.user)
+  const token = useAuthStore((state) => state.token)
   const navigate = useNavigate()
 
+  const patientIdFromStore = useAuthStore((state) => state.patientId)
+  const setPatientInfo = useAuthStore((state) => state.setPatientInfo)
+
   const [upcomingAppointments, setUpcomingAppointments] = useState([])
+  const [medicalServices, setMedicalServices] = useState([])
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const medicalServices = useMemo(
-    () => [
-      { icon: <HeartOutlined />, name: 'Cardiology', description: 'Heart & cardiovascular care', color: '#ff4d4f' },
-      { icon: <ExperimentOutlined />, name: 'Neurology', description: 'Brain & nervous system', color: '#722ed1' },
-      { icon: <ApiOutlined />, name: 'Orthopedics', description: 'Bones & joints', color: '#1890ff' },
-      { icon: <UserOutlined />, name: 'Pediatrics', description: "Children's health", color: '#eb2f96' },
-      { icon: <EyeOutlined />, name: 'Ophthalmology', description: 'Eye care', color: '#13c2c2' },
-      { icon: <MedicineBoxOutlined />, name: 'General Medicine', description: 'Primary care', color: '#52c41a' },
-    ],
-    []
-  )
+  const ensurePatientInStore = useCallback(async () => {
+    const phone = String(user?.phoneNumber || '').replace(/\D/g, '').trim()
+    if (!phone) throw new Error('Missing user phoneNumber (from auth)')
 
-  const formatTimeFromISO = (isoString) => {
-    if (!isoString) return ''
-    const d = new Date(isoString)
-    // local time display
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
+    const existsRes = await patientsAPI.exists(phone)
+    const exists = Boolean(existsRes?.data?.exists)
+    const existingId = existsRes?.data?.id
 
-  const formatDateForRelative = (isoString) => {
-    if (!isoString) return ''
-    const d = new Date(isoString)
-    const yyyy = d.getFullYear()
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    return `${yyyy}-${mm}-${dd}`
-  }
+    if (exists && existingId) {
+      setPatientInfo({ patientId: Number(existingId), phoneNumber: phone })
+      return Number(existingId)
+    }
 
-  const normalizeUpcoming = (rows) =>
-    (rows || []).map((a) => ({
-      id: a.id,
-      specialty: a.medical_field_name ?? 'Appointment',
-      doctor: a.doctor_name ?? 'Doctor',
-      appointment_time: a.appointment_time,
-      date: formatDateForRelative(a.appointment_time),
-      time: formatTimeFromISO(a.appointment_time),
-      status: a.status ?? 'scheduled',
-      duration_minutes: a.duration_minutes,
-      location: a.location ?? null, // backend doesn't provide; keep optional
-      consultation_fee: a.consultation_fee ?? null,
-    }))
+    const createdRes = await patientsAPI.create(phone)
+    const created = createdRes?.data
 
-  const fetchUpcomingAppointments = async () => {
+    if (!created?.id) throw new Error('Patient created but missing id from server response')
+
+    const newId = Number(created.id)
+    setPatientInfo({
+      patientId: newId,
+      phoneNumber: created.phone_number || phone,
+    })
+    return newId
+  }, [setPatientInfo, user?.phoneNumber])
+
+  const fetchMedicalServices = useCallback(async () => {
+    const res = await medicalFieldsAPI.getAll()
+    const normalized = normalizeMedicalFields(res?.data).filter((s) => s.is_active !== false)
+    setMedicalServices(normalized)
+  }, [])
+
+  const fetchUpcomingAppointments = useCallback(async () => {
+    if (!token) {
+      navigate('/login')
+      return
+    }
+
+    const ensuredPatientId = patientIdFromStore ? Number(patientIdFromStore) : await ensurePatientInStore()
+    if (!ensuredPatientId || Number.isNaN(ensuredPatientId)) throw new Error('Missing patientId after ensurePatientInStore')
+
+    const res = await appointmentsAPI.getUpcoming(10, ensuredPatientId)
+    const data = Array.isArray(res?.data) ? res.data : []
+    setUpcomingAppointments(normalizeUpcoming(data))
+  }, [ensurePatientInStore, navigate, patientIdFromStore, token])
+
+  const loadDashboard = useCallback(async () => {
     setLoading(true)
     setError(null)
-
     try {
-      const res = await appointmentsAPI.getUpcoming(10)
-      const data = Array.isArray(res?.data) ? res.data : []
-      setUpcomingAppointments(normalizeUpcoming(data))
+      await Promise.all([fetchMedicalServices(), fetchUpcomingAppointments()])
     } catch (err) {
       setError(err)
-      console.error('Failed to load appointments:', err)
+      console.error('Failed to load dashboard:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [fetchMedicalServices, fetchUpcomingAppointments])
 
   useEffect(() => {
-    fetchUpcomingAppointments()
+    loadDashboard()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const isNewUser = !upcomingAppointments.length
 
-  if (loading) return <Loading tip="Loading dashboard..." />
+  // ✅ IMPORTANT: store a COMPONENT, render with <Icon />
+  const servicesForUI = useMemo(() => {
+    return (medicalServices || []).map((s, idx) => {
+      const Icon = resolveMedicalIconComponent(s.icon, s.name)
+      return {
+        ...s,
+        color: s.color || pickColor(idx),
+        Icon, // component
+      }
+    })
+  }, [medicalServices])
 
-  if (error) {
-    return (
-      <Error
-        error={error}
-        onRetry={fetchUpcomingAppointments}
-        showTechnicalDetails={import.meta.env.DEV}
-      />
-    )
-  }
+  if (loading) return <Loading tip="Loading dashboard..." />
+  if (error) return <Error error={error} onRetry={loadDashboard} showTechnicalDetails={import.meta.env.DEV} />
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {/* Welcome Banner */}
       <Card
         style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -143,30 +187,47 @@ const Dashboard = () => {
             <Title level={3} style={{ marginBottom: 16 }}>
               Our Medical Services
             </Title>
-            <Row gutter={[16, 16]}>
-              {medicalServices.map((service) => (
-                <Col xs={24} sm={12} lg={8} key={service.name}>
-                  <Card hoverable onClick={() => navigate('/book')}>
-                    <Space direction="vertical" size="small">
-                      <div style={{ fontSize: 32, color: service.color }}>{service.icon}</div>
-                      <Title level={5} style={{ marginBottom: 4 }}>
-                        {service.name}
-                      </Title>
-                      <Text type="secondary">{service.description}</Text>
-                    </Space>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
+
+            {servicesForUI.length === 0 ? (
+              <Empty description="No medical services available" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <Row gutter={[16, 16]}>
+                {servicesForUI.map((service) => {
+                  const Icon = service.Icon
+                  return (
+                    <Col xs={24} sm={12} lg={8} key={service.id}>
+                      <Card hoverable onClick={() => navigate('/book')}>
+                        <Space direction="vertical" size="small">
+                          <div style={{ fontSize: 32, color: service.color }}>
+                            <Icon />
+                          </div>
+                          <Title level={5} style={{ marginBottom: 4 }}>
+                            {service.name}
+                          </Title>
+                          <Text type="secondary">{service.description || '—'}</Text>
+                        </Space>
+                      </Card>
+                    </Col>
+                  )
+                })}
+              </Row>
+            )}
           </div>
         </>
       ) : (
         <Row gutter={[16, 16]}>
-          {/* Upcoming Appointments */}
           <Col xs={24} lg={16}>
             <Card
-              title={<Title level={4} style={{ margin: 0 }}>Upcoming Appointments</Title>}
-              extra={<Button type="link" onClick={() => navigate('/appointments')}>View all</Button>}
+              title={
+                <Title level={4} style={{ margin: 0 }}>
+                  Upcoming Appointments
+                </Title>
+              }
+              extra={
+                <Button type="link" onClick={() => navigate('/appointments')}>
+                  View all
+                </Button>
+              }
             >
               {upcomingAppointments.length > 0 ? (
                 <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -216,9 +277,7 @@ const Dashboard = () => {
                         </Col>
 
                         <Col>
-                          <Tag color={getStatusColor(appointment.status)}>
-                            {String(appointment.status).toUpperCase()}
-                          </Tag>
+                          <Tag color={getStatusColor(appointment.status)}>{String(appointment.status).toUpperCase()}</Tag>
                         </Col>
                       </Row>
                     </Card>
@@ -234,7 +293,6 @@ const Dashboard = () => {
             </Card>
           </Col>
 
-          {/* Quick Actions */}
           <Col xs={24} lg={8}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Title level={4}>Quick Actions</Title>
@@ -273,28 +331,39 @@ const Dashboard = () => {
         </Row>
       )}
 
-      {/* Available Specialties */}
       {!isNewUser && (
         <div>
           <Title level={4} style={{ marginBottom: 16 }}>
             Available Specialties
           </Title>
-          <Row gutter={[16, 16]}>
-            {medicalServices.map((service) => (
-              <Col xs={12} sm={8} lg={4} key={service.name}>
-                <Card
-                  hoverable
-                  bodyStyle={{ textAlign: 'center', padding: '20px 12px' }}
-                  onClick={() => navigate('/book')}
-                >
-                  <div style={{ fontSize: 32, color: service.color, marginBottom: 8 }}>{service.icon}</div>
-                  <Text strong style={{ fontSize: 12 }}>
-                    {service.name}
-                  </Text>
-                </Card>
-              </Col>
-            ))}
-          </Row>
+
+          {servicesForUI.length === 0 ? (
+            <Empty description="No specialties available" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          ) : (
+            <Row gutter={[16, 16]}>
+              {servicesForUI.map((service) => {
+                const Icon = service.Icon
+                return (
+                  <Col xs={12} sm={8} lg={4} key={service.id}>
+                    <Card
+                      hoverable
+                      styles={{
+                        body: { textAlign: 'center', padding: '20px 12px' },
+                      }}
+                      onClick={() => navigate('/book')}
+                    >
+                      <div style={{ fontSize: 32, color: service.color, marginBottom: 8 }}>
+                        <Icon />
+                      </div>
+                      <Text strong style={{ fontSize: 12 }}>
+                        {service.name}
+                      </Text>
+                    </Card>
+                  </Col>
+                )
+              })}
+            </Row>
+          )}
         </div>
       )}
     </Space>

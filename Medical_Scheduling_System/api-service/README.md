@@ -100,8 +100,8 @@ DELETE /api/appointments/{id}
 
 #### Patient Profile (Protected)
 ```bash
-GET /api/patients/me
-PATCH /api/patients/me
+GET /api/patients/profile
+PATCH /api/patients/profile
 ```
 
 ## 🔐 Authentication

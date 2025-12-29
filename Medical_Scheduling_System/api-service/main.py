@@ -4,10 +4,21 @@ from app.api.routes import appointments, doctors, medical_fields, patients
 from app.core.config import get_settings
 from app.core.database import DatabasePool
 import logging
+# import os
 # import debugpy
+
+# # Only listen in the real server process (not the reloader)
 
 # debugpy.listen(("0.0.0.0", 5678))
 # print("✅ API debugpy listening on 5678")
+# # debugpy.wait_for_client()  # optional
+
+import os
+
+if os.getenv("DEBUGPY", "0") == "1":
+    import debugpy
+    debugpy.listen(("0.0.0.0", 5679))
+    print("✅ debugpy listening on 5679")
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

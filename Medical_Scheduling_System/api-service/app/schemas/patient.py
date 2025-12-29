@@ -22,3 +22,6 @@ class PatientUpdate(BaseModel):
     date_of_birth: Optional[date] = None
     gender: Optional[str] = Field(None, pattern='^(male|female|other)$')
     time_zone: Optional[str] = None
+    
+class PatientCreate(BaseModel):
+    phone_number: str = Field(..., min_length=7, max_length=20)

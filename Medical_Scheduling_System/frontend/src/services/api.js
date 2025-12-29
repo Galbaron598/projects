@@ -1,36 +1,29 @@
-// src/services/api.js
 import axios from 'axios'
 import { message } from 'antd'
+import { useAuthStore } from '../store/authStore'
 
-// Base URLs for different services
 const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8000'
 const API_SERVICE_URL = import.meta.env.VITE_API_SERVICE_URL || 'http://localhost:8001'
 
-// Axios instances
+const DEFAULT_TIMEOUT_MS = 15000
+
 const authService = axios.create({
   baseURL: AUTH_SERVICE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10000,
+  timeout: DEFAULT_TIMEOUT_MS,
 })
 
 const apiService = axios.create({
   baseURL: API_SERVICE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10000,
+  timeout: DEFAULT_TIMEOUT_MS,
 })
 
-// Add Bearer token to requests (both services)
 const requestInterceptor = (config) => {
-  const authStorage = localStorage.getItem('auth-storage')
-  if (authStorage) {
-    try {
-      const { state } = JSON.parse(authStorage)
-      if (state?.token) {
-        config.headers.Authorization = `Bearer ${state.token}`
-      }
-    } catch (err) {
-      console.error('Error parsing auth storage:', err)
-    }
+  const token = useAuthStore.getState().token
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 }
@@ -38,7 +31,22 @@ const requestInterceptor = (config) => {
 authService.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error))
 apiService.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error))
 
-// Shared error handler
+const forceLogoutAndRedirect = () => {
+  try {
+    useAuthStore.getState().logout()
+  } catch (e) {
+    console.error('Logout failed:', e)
+  }
+
+  try {
+    localStorage.removeItem('auth-storage')
+  } catch (e) {
+    console.error('Failed to remove auth-storage:', e)
+  }
+
+  window.location.href = '/login'
+}
+
 const responseErrorInterceptor = (error) => {
   if (error.response) {
     const errorData = {
@@ -61,22 +69,19 @@ const responseErrorInterceptor = (error) => {
       switch (error.response.status) {
         case 401:
           message.error('Unauthorized. Please login again.')
-          setTimeout(() => {
-            localStorage.removeItem('auth-storage')
-            window.location.href = '/login'
-          }, 800)
+          setTimeout(() => forceLogoutAndRedirect(), 800)
           break
         case 403:
           message.error('Access forbidden')
           break
         case 404:
-          message.error('Resource not found')
+          message.error(errorData.message || 'Resource not found')
           break
         case 400:
           message.error(errorData.message)
           break
         case 409:
-          message.error(errorData.message || 'Conflict - Resource already exists')
+          message.error(errorData.message || 'Conflict')
           break
         case 422:
           message.error('Validation failed. Please check your input.')
@@ -108,88 +113,91 @@ const responseErrorInterceptor = (error) => {
 authService.interceptors.response.use((r) => r, responseErrorInterceptor)
 apiService.interceptors.response.use((r) => r, responseErrorInterceptor)
 
-// =============================================================================
-// AUTH SERVICE (8000)
-// =============================================================================
+// AUTH (8000)
 export const authAPI = {
-  requestOTP: (phoneNumber) => authService.post('/request-otp', { phoneNumber }),
-  verifyOTP: (phoneNumber, otp) => authService.post('/verify-otp', { phoneNumber, otp }),
-  getCurrentUser: () => authService.get('/profile'),
-  logout: () => authService.post('/logout'),
-  validateToken: (token) => authService.post('/validate-token', { token }),
-  health: () => authService.get('/health'),
+  requestOTP: (phoneNumber) => authService.post('/api/auth/request-otp', { phoneNumber }),
+  verifyOTP: (phoneNumber, otp) => authService.post('/api/auth/verify-otp', { phoneNumber, otp }),
+  getCurrentUser: () => authService.get('/api/auth/profile'),
+  logout: () => authService.post('/api/auth/logout'),
+  validateToken: (token) => authService.post('/api/auth/validate-token', { token }),
+  health: () => authService.get('/api/auth/health'),
 }
 
-// =============================================================================
-// API SERVICE (8001)
-// =============================================================================
-
-// Medical fields
+// API (8001)
 export const medicalFieldsAPI = {
   getAll: () => apiService.get('/api/medical-fields'),
   getById: (id) => apiService.get(`/api/medical-fields/${id}`),
   getDoctorsCount: (fieldId) => apiService.get(`/api/medical-fields/${fieldId}/doctors-count`),
 }
 
-// Doctors
 export const doctorsAPI = {
   getAll: (params) => apiService.get('/api/doctors', { params }),
   getBySpecialty: (medicalFieldId, params = {}) =>
     apiService.get('/api/doctors', { params: { medical_field_id: medicalFieldId, ...params } }),
   getById: (id) => apiService.get(`/api/doctors/${id}`),
+
   getAvailableSlots: (doctorId, date) =>
     apiService.get(`/api/doctors/${doctorId}/available-slots`, { params: { date } }),
+
   search: (searchTerm, params = {}) =>
     apiService.get('/api/doctors', { params: { search: searchTerm, ...params } }),
 }
 
-// Appointments
+// ✅ store-based patientId helper (used only where backend needs it)
+const requirePatientId = () => {
+  const patientId = useAuthStore.getState().patientId
+  const n = Number(patientId)
+  if (!n || Number.isNaN(n)) {
+    throw new Error('Missing patientId in store. Please login again.')
+  }
+  return n
+}
+
 export const appointmentsAPI = {
-  // POST /api/appointments
   create: (appointmentData) => apiService.post('/api/appointments', appointmentData),
 
-  // GET /api/appointments?status_filter=&limit=&offset=
+  // ✅ your backend /api/appointments uses token -> no patient_id param
   getAll: ({ status_filter, limit = 50, offset = 0 } = {}) =>
-    apiService.get('/api/appointments', {
-      params: { status_filter, limit, offset },
-    }),
+    apiService.get('/api/appointments', { params: { status_filter, limit, offset } }),
 
-  // GET /api/appointments/upcoming?limit=
-  getUpcoming: (limit = 10) =>
-    apiService.get('/api/appointments/upcoming', { params: { limit } }),
+  // ✅ /upcoming requires patient_id in YOUR FastAPI
+  getUpcoming: (limit = 100) => {
+    const patient_id = requirePatientId()
+    return apiService.get('/api/appointments/upcoming', { params: { patient_id, limit } })
+  },
 
-  // GET /api/appointments/past?limit=&offset=
-  getPast: (limit = 20, offset = 0) =>
+  // ✅ /past does NOT accept patient_id in YOUR FastAPI
+  getPast: (limit = 50, offset = 0) =>
     apiService.get('/api/appointments/past', { params: { limit, offset } }),
 
-  // GET /api/appointments/stats
-  getStats: () => apiService.get('/api/appointments/stats'),
-
-  // GET /api/appointments/{id}
   getById: (id) => apiService.get(`/api/appointments/${id}`),
 
-  // PATCH /api/appointments/{id}
-  // Body supports: status, notes, cancellation_reason
   update: (id, updateData) => apiService.patch(`/api/appointments/${id}`, updateData),
 
-  // Convenience cancel helper
-  cancel: (id, cancellationReason) =>
+  // ✅ cancel uses PATCH (your backend supports status + cancellation_reason)
+  cancel: (id, cancellationReason = null) =>
     apiService.patch(`/api/appointments/${id}`, {
       status: 'cancelled',
-      cancellation_reason: cancellationReason ?? null,
+      cancellation_reason: cancellationReason,
     }),
 
-  // DELETE /api/appointments/{id}
-  delete: (id) => apiService.delete(`/api/appointments/${id}`),
+  // NOTE: your backend AppointmentUpdate currently does NOT include appointment_time,
+  // so reschedule cannot be done via PATCH unless you add it to schema + SQL update.
 }
 
-// Patients (based on your tests: /api/patients/me)
+export const patientsAPI = {
+  exists: (phoneNumber) => apiService.get('/api/patients/exists', { params: { phone_number: phoneNumber } }),
+  create: (phoneNumber) => apiService.post('/api/patients/new', { phone_number: phoneNumber }),
+
+  // ✅ token-based profile endpoints
+  getProfile: (patientId) => apiService.get('/api/patients/profile', { params: { patientId: patientId } }),
+  updateProfile: (data) => apiService.patch('/api/patients/profile',  { params: { data: data}}),
+}
+
 export const patientAPI = {
-  getMe: () => apiService.get('/api/patients/me'),
-  updateMe: (data) => apiService.patch('/api/patients/me', data),
+  getMe: patientsAPI.getProfile,
+  updateMe: patientsAPI.updateProfile,
 }
-
-// Backward compatibility alias (if your UI imports userAPI)
 export const userAPI = patientAPI
 
 export default {
@@ -199,6 +207,7 @@ export default {
   medicalFieldsAPI,
   doctorsAPI,
   appointmentsAPI,
+  patientsAPI,
   patientAPI,
   userAPI,
 }
