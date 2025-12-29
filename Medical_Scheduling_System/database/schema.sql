@@ -10,6 +10,8 @@ CREATE TABLE patients (
     date_of_birth DATE,
     gender VARCHAR(10) CHECK (gender IN ('male', 'female', 'other')),
     time_zone VARCHAR(50) NOT NULL DEFAULT 'Asia/Jerusalem',
+    emergency_contact VARCHAR(20),
+    address TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT true
@@ -83,3 +85,5 @@ CREATE INDEX idx_doctors_available ON doctors(is_available);
 CREATE INDEX idx_appointments_patient ON appointments(patient_id, appointment_time DESC);
 CREATE INDEX idx_appointments_doctor ON appointments(doctor_id, appointment_time);
 CREATE INDEX idx_appointments_status ON appointments(status);
+CREATE UNIQUE INDEX unique_patient_time ON appointments(patient_id, appointment_time);
+

@@ -119,7 +119,6 @@ const Layout = () => {
                 icon={<UserOutlined />} 
                 style={{ backgroundColor: '#1890ff' }} 
               />
-              <span>{user?.fullName || 'User'}</span>
             </Space>
           </Dropdown>
         </Header>

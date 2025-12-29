@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Row, Col, Typography, Button, Space, Tag, Empty } from 'antd'
 import { CalendarOutlined, ClockCircleOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../store/authStore'
-import { appointmentsAPI, patientsAPI, medicalFieldsAPI } from '../services/api'
+import { appointmentsAPI, medicalFieldsAPI } from '../services/api'
 import { getRelativeDate, getStatusColor } from '../utils/helpers'
 import { resolveMedicalIconComponent } from '../utils/medicalIcons'
 import '../styles/Dashboard.css'
 import Error from '../components/Error'
 import Loading from '../components/Loading'
+import useEnsurePatientInStore from '../hooks/useEnsurePatientInStore'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -50,7 +51,7 @@ const normalizeMedicalFields = (rows) => {
     id: f.id ?? `${f.medical_field_name ?? f.name ?? 'service'}-${idx}`,
     name: f.medical_field_name ?? f.name ?? 'Medical Service',
     description: f.description ?? '',
-    icon: f.icon ?? null, // string from backend
+    icon: f.icon ?? null,
     is_active: f.is_active ?? true,
     color: pickColor(idx),
   }))
@@ -59,42 +60,17 @@ const normalizeMedicalFields = (rows) => {
 const Dashboard = () => {
   const user = useAuthStore((state) => state.user)
   const token = useAuthStore((state) => state.token)
+  const patientIdFromStore = useAuthStore((state) => state.patientId)
+
   const navigate = useNavigate()
 
-  const patientIdFromStore = useAuthStore((state) => state.patientId)
-  const setPatientInfo = useAuthStore((state) => state.setPatientInfo)
+  const ensurePatientInStore = useEnsurePatientInStore()
 
   const [upcomingAppointments, setUpcomingAppointments] = useState([])
   const [medicalServices, setMedicalServices] = useState([])
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-
-  const ensurePatientInStore = useCallback(async () => {
-    const phone = String(user?.phoneNumber || '').replace(/\D/g, '').trim()
-    if (!phone) throw new Error('Missing user phoneNumber (from auth)')
-
-    const existsRes = await patientsAPI.exists(phone)
-    const exists = Boolean(existsRes?.data?.exists)
-    const existingId = existsRes?.data?.id
-
-    if (exists && existingId) {
-      setPatientInfo({ patientId: Number(existingId), phoneNumber: phone })
-      return Number(existingId)
-    }
-
-    const createdRes = await patientsAPI.create(phone)
-    const created = createdRes?.data
-
-    if (!created?.id) throw new Error('Patient created but missing id from server response')
-
-    const newId = Number(created.id)
-    setPatientInfo({
-      patientId: newId,
-      phoneNumber: created.phone_number || phone,
-    })
-    return newId
-  }, [setPatientInfo, user?.phoneNumber])
 
   const fetchMedicalServices = useCallback(async () => {
     const res = await medicalFieldsAPI.getAll()
@@ -109,7 +85,7 @@ const Dashboard = () => {
     }
 
     const ensuredPatientId = patientIdFromStore ? Number(patientIdFromStore) : await ensurePatientInStore()
-    if (!ensuredPatientId || Number.isNaN(ensuredPatientId)) throw new Error('Missing patientId after ensurePatientInStore')
+    if (!ensuredPatientId || Number.isNaN(ensuredPatientId)) throw new Error('Missing patientId after ensure')
 
     const res = await appointmentsAPI.getUpcoming(10, ensuredPatientId)
     const data = Array.isArray(res?.data) ? res.data : []
@@ -136,15 +112,10 @@ const Dashboard = () => {
 
   const isNewUser = !upcomingAppointments.length
 
-  // ✅ IMPORTANT: store a COMPONENT, render with <Icon />
   const servicesForUI = useMemo(() => {
     return (medicalServices || []).map((s, idx) => {
       const Icon = resolveMedicalIconComponent(s.icon, s.name)
-      return {
-        ...s,
-        color: s.color || pickColor(idx),
-        Icon, // component
-      }
+      return { ...s, color: s.color || pickColor(idx), Icon }
     })
   }, [medicalServices])
 
@@ -347,9 +318,7 @@ const Dashboard = () => {
                   <Col xs={12} sm={8} lg={4} key={service.id}>
                     <Card
                       hoverable
-                      styles={{
-                        body: { textAlign: 'center', padding: '20px 12px' },
-                      }}
+                      styles={{ body: { textAlign: 'center', padding: '20px 12px' } }}
                       onClick={() => navigate('/book')}
                     >
                       <div style={{ fontSize: 32, color: service.color, marginBottom: 8 }}>

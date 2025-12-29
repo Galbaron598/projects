@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   Card,
   Form,
@@ -11,120 +11,139 @@ import {
   Avatar,
   DatePicker,
   message as antMessage,
-} from "antd"
+} from 'antd'
 import {
   UserOutlined,
   PhoneOutlined,
   MailOutlined,
-  EnvironmentOutlined,
   EditOutlined,
   SaveOutlined,
-  MedicineBoxOutlined,
-} from "@ant-design/icons"
+} from '@ant-design/icons'
 
-import "../styles/Profile.css"
-import { useAuthStore } from "../store/authStore"
-import { userAPI } from "../services/api"
-import dayjs from "dayjs"
+import '../styles/Profile.css'
+import { useAuthStore } from '../store/authStore'
+import { patientsAPI } from '../services/api'
+import dayjs from 'dayjs'
+import useEnsurePatientInStore from '../hooks/useEnsurePatientInStore'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
 
 const Profile = () => {
-  const patientId = useAuthStore((s) => s.patientId)
   const user = useAuthStore((s) => s.user)
+  const token = useAuthStore((s) => s.token)
+  const patientIdFromStore = useAuthStore((s) => s.patientId)
   const updateUser = useAuthStore((s) => s.updateUser)
 
+  const { ensurePatientId } = useEnsurePatientInStore()
+
   const [isEditing, setIsEditing] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [fetching, setFetching] = useState(false)
 
   const [form] = Form.useForm()
 
-  useEffect(() => {
-    const loadMe = async () => {
-      setFetching(true)
-      try {
-        const res = await userAPI.getMe(patientId)
-        if (res?.data) {
-          // backend returns: full_name, phone_number, date_of_birth, ...
-          updateUser(res.data)
-        }
-      } catch (e) {
-        antMessage.error(e?.errorData?.message || "Failed to load profile")
-      } finally {
-        setFetching(false)
-      }
+  const loadProfile = useCallback(async () => {
+    if (!token) return
+
+    setFetching(true)
+    try {
+      const ensuredId = patientIdFromStore ? Number(patientIdFromStore) : await ensurePatientId()
+      if (!ensuredId || Number.isNaN(ensuredId)) throw new Error('Missing patientId after ensure')
+
+      const res = await patientsAPI.getProfile(ensuredId)
+      if (res?.data) updateUser(res.data)
+    } catch (e) {
+      antMessage.error(e?.errorData?.message || e?.message || 'Failed to load profile')
+    } finally {
+      setFetching(false)
     }
-    loadMe()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [token, patientIdFromStore, ensurePatientId, updateUser])
+
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
 
   const initialValues = useMemo(() => {
     return {
-      fullName: user?.full_name || user?.fullName || "",
-      email: user?.email || "",
-      dateOfBirth: user?.date_of_birth ? dayjs(user.date_of_birth) : user?.dateOfBirth ? dayjs(user.dateOfBirth) : null,
-      address: user?.address || "",
-      emergencyContact: user?.emergency_contact || user?.emergencyContact || "",
+      fullName: user?.full_name ?? user?.fullName ?? '',
+      email: user?.email ?? '',
+      dateOfBirth: user?.date_of_birth
+        ? dayjs(user.date_of_birth)
+        : user?.dateOfBirth
+          ? dayjs(user.dateOfBirth)
+          : null,
+
+      // ✅ now backend fields
+      emergencyContact: user?.emergency_contact ?? user?.emergencyContact ?? '',
+      address: user?.address ?? '',
     }
   }, [user])
 
   useEffect(() => {
     form.setFieldsValue(initialValues)
-  }, [initialValues, form])
+  }, [form, initialValues])
 
   const handleSaveProfile = async (values) => {
-    setLoading(true)
+    if (!token) {
+      antMessage.error('Please login again.')
+      return
+    }
+
+    setSaving(true)
     try {
-      // ✅ map to backend schema (snake_case)
+      const ensuredId = patientIdFromStore ? Number(patientIdFromStore) : await ensurePatientId()
+      if (!ensuredId || Number.isNaN(ensuredId)) throw new Error('Missing patientId after ensure')
+
       const payload = {
         full_name: values.fullName?.trim() || null,
         email: values.email?.trim() || null,
-        date_of_birth: values.dateOfBirth ? values.dateOfBirth.format("YYYY-MM-DD") : null,
-        // optional fields if you add them to UI later:
-        // gender: values.gender ?? null,
-        // time_zone: values.timeZone ?? null,
+        date_of_birth: values.dateOfBirth ? values.dateOfBirth.format('YYYY-MM-DD') : null,
+
+        // ✅ persisted now
+        emergency_contact: values.emergencyContact?.trim() || null,
+        address: values.address?.trim() || null,
       }
 
-      const res = await userAPI.updateMe(payload)
-
-      // ✅ update store with server response (source of truth)
+      const res = await patientsAPI.updateProfile(payload, ensuredId)
       if (res?.data) updateUser(res.data)
 
-      antMessage.success("Profile updated successfully")
+      antMessage.success('Profile updated successfully')
       setIsEditing(false)
-    } catch (error) {
-      antMessage.error(error?.errorData?.message || "Failed to update profile")
+    } catch (e) {
+      antMessage.error(e?.errorData?.message || e?.message || 'Failed to update profile')
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
+  const patientIdForUI = patientIdFromStore || '-'
+
   return (
-    <Space direction="vertical" size="large" style={{ width: "100%" }}>
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <Card
         loading={fetching}
         style={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          color: "#fff",
-          border: "none",
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: '#fff',
+          border: 'none',
         }}
       >
         <Space align="center" size="large">
-          <Avatar size={80} icon={<UserOutlined />} style={{ backgroundColor: "#fff", color: "#1890ff" }} />
+          <Avatar size={80} icon={<UserOutlined />} style={{ backgroundColor: '#fff', color: '#1890ff' }} />
+
           <div>
-            <Title level={2} style={{ color: "#fff", marginBottom: 4 }}>
-              {user?.full_name || user?.fullName || "User"}
+            <Title level={2} style={{ color: '#fff', marginBottom: 4 }}>
+              {user?.full_name || 'User'}
             </Title>
+
             <Space direction="vertical" size={2}>
               <Space>
                 <PhoneOutlined />
-                <Text style={{ color: "rgba(255,255,255,0.9)" }}>{user?.phone_number || user?.phoneNumber || "-"}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.9)' }}>
+                  {user?.phone_number || user?.phoneNumber || '-'}
+                </Text>
               </Space>
-              <Text style={{ color: "rgba(255,255,255,0.75)" }}>
-                Patient ID: {patientId || "-"}
-              </Text>
             </Space>
           </div>
         </Space>
@@ -152,7 +171,7 @@ const Profile = () => {
               >
                 Cancel
               </Button>
-              <Button type="primary" icon={<SaveOutlined />} onClick={() => form.submit()} loading={loading}>
+              <Button type="primary" icon={<SaveOutlined />} onClick={() => form.submit()} loading={saving}>
                 Save
               </Button>
             </Space>
@@ -165,26 +184,39 @@ const Profile = () => {
               <Form.Item
                 label="Full Name"
                 name="fullName"
-                rules={[{ required: true, message: "Please enter your full name" }]}
+                rules={[{ required: true, message: 'Please enter your full name' }]}
               >
                 <Input prefix={<UserOutlined />} placeholder="Full Name" />
               </Form.Item>
             </Col>
 
             <Col xs={24} md={12}>
-              <Form.Item label="Email Address" name="email" rules={[{ type: "email", message: "Please enter a valid email" }]}>
+              <Form.Item
+                label="Email Address"
+                name="email"
+                rules={[{ type: 'email', message: 'Please enter a valid email' }]}
+              >
                 <Input prefix={<MailOutlined />} placeholder="Email Address" />
               </Form.Item>
             </Col>
 
             <Col xs={24} md={12}>
               <Form.Item label="Date of Birth" name="dateOfBirth">
-                <DatePicker style={{ width: "100%" }} format="YYYY-MM-DD" />
+                <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
               </Form.Item>
             </Col>
 
             <Col xs={24} md={12}>
-              <Form.Item label="Emergency Contact" name="emergencyContact">
+              <Form.Item
+                label="Emergency Contact"
+                name="emergencyContact"
+                rules={[
+                  {
+                    pattern: /^[0-9+\-\s()]{7,20}$/,
+                    message: 'Please enter a valid phone number',
+                  },
+                ]}
+              >
                 <Input prefix={<PhoneOutlined />} placeholder="Emergency Contact Number" />
               </Form.Item>
             </Col>
@@ -196,33 +228,6 @@ const Profile = () => {
             </Col>
           </Row>
         </Form>
-      </Card>
-
-      <Card
-        title={
-          <Space>
-            <MedicineBoxOutlined />
-            <span>Medical History</span>
-          </Space>
-        }
-      >
-        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-          <Card size="small" type="inner">
-            <Title level={5}>Allergies</Title>
-            <Text type="secondary">None reported</Text>
-          </Card>
-          <Card size="small" type="inner">
-            <Title level={5}>Current Medications</Title>
-            <Text type="secondary">None reported</Text>
-          </Card>
-          <Card size="small" type="inner">
-            <Title level={5}>Chronic Conditions</Title>
-            <Text type="secondary">None reported</Text>
-          </Card>
-          <Button block disabled>
-            Update Medical History
-          </Button>
-        </Space>
       </Card>
     </Space>
   )

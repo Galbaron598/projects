@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Steps,
@@ -24,12 +24,14 @@ import {
   CheckCircleOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import { appointmentsAPI, medicalFieldsAPI, doctorsAPI } from '../services/api'
 import { formatDate, formatTime } from '../utils/helpers'
 import { resolveMedicalIconComponent } from '../utils/medicalIcons'
 import dayjs from 'dayjs'
 import { useAuthStore } from '../store/authStore'
+import useEnsurePatientInStore from '../hooks/useEnsurePatientInStore'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -39,26 +41,32 @@ const BookAppointment = () => {
   const [currentStep, setCurrentStep] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  // data loading
   const [loadingFields, setLoadingFields] = useState(false)
   const [loadingDoctors, setLoadingDoctors] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
 
-  // fetched data
   const [specialties, setSpecialties] = useState([])
   const [doctors, setDoctors] = useState([])
-  const [timeSlots, setTimeSlots] = useState([]) // [{start_time,end_time,available}]
+  const [timeSlots, setTimeSlots] = useState([])
+
+  const [specialtySearch, setSpecialtySearch] = useState('')
+  const [doctorSearch, setDoctorSearch] = useState('')
 
   const [formData, setFormData] = useState({
     specialtyId: null,
     doctorId: null,
-    date: null, // YYYY-MM-DD
-    timeSlotISO: null, // slot.start_time ISO
+    date: null, // YYYY-MM-DD (local date picker)
+    timeSlotISO: null, // ISO from backend (UTC)
     notes: '',
   })
 
   const navigate = useNavigate()
-  const patientId = useAuthStore((s) => s.patientId)
+
+  const token = useAuthStore((s) => s.token)
+  const patientIdFromStore = useAuthStore((s) => s.patientId)
+
+  // ensures patient exists and sets store (prevents double create in StrictMode)
+  const { ensurePatientId } = useEnsurePatientInStore()
 
   const steps = useMemo(
     () => [
@@ -84,6 +92,22 @@ const BookAppointment = () => {
     const Icon = resolveMedicalIconComponent(selectedSpecialty?.icon, selectedSpecialty?.name)
     return Icon || MedicineBoxOutlined
   }, [selectedSpecialty?.icon, selectedSpecialty?.name])
+
+  // filtered lists for UI
+  const filteredSpecialties = useMemo(() => {
+    const q = specialtySearch.trim().toLowerCase()
+    if (!q) return specialties
+    return specialties.filter((s) => `${s.name} ${s.description || ''}`.toLowerCase().includes(q))
+  }, [specialties, specialtySearch])
+
+  const filteredDoctors = useMemo(() => {
+    const q = doctorSearch.trim().toLowerCase()
+    if (!q) return doctors
+    return doctors.filter((d) => {
+      const hay = `${d.name} ${d.specialization || ''} ${d.medical_field_name || ''}`.toLowerCase()
+      return hay.includes(q)
+    })
+  }, [doctors, doctorSearch])
 
   // load specialties
   useEffect(() => {
@@ -112,6 +136,11 @@ const BookAppointment = () => {
 
     loadFields()
   }, [])
+
+  // reset doctor search when changing specialty
+  useEffect(() => {
+    setDoctorSearch('')
+  }, [formData.specialtyId])
 
   // load doctors when specialty changes
   useEffect(() => {
@@ -156,17 +185,16 @@ const BookAppointment = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.specialtyId])
 
-  // load slots when doctor + date chosen
-  useEffect(() => {
-    const loadSlots = async () => {
-      if (!formData.doctorId || !formData.date) {
+  const fetchSlots = useCallback(
+    async (doctorId, date) => {
+      if (!doctorId || !date) {
         setTimeSlots([])
         return
       }
 
       setLoadingSlots(true)
       try {
-        const res = await doctorsAPI.getAvailableSlots(formData.doctorId, formData.date)
+        const res = await doctorsAPI.getAvailableSlots(doctorId, date)
         const slots = Array.isArray(res?.data?.available_slots) ? res.data.available_slots : []
 
         const normalized = slots
@@ -188,9 +216,13 @@ const BookAppointment = () => {
       } finally {
         setLoadingSlots(false)
       }
-    }
+    },
+    [setTimeSlots]
+  )
 
-    loadSlots()
+  // load slots when doctor + date chosen
+  useEffect(() => {
+    fetchSlots(formData.doctorId, formData.date)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.doctorId, formData.date])
 
@@ -215,24 +247,34 @@ const BookAppointment = () => {
     }
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
+    if (loading) return // extra guard
     setLoading(true)
+
     try {
       if (!formData.doctorId || !formData.specialtyId || !formData.date || !formData.timeSlotISO) {
         antMessage.error('Missing appointment details')
         return
       }
 
-      if (!patientId || Number.isNaN(patientId)) {
+      if (!token) {
+        antMessage.error('Unauthorized. Please log in again.')
+        navigate('/login')
+        return
+      }
+
+      const ensuredPatientId = patientIdFromStore ? Number(patientIdFromStore) : await ensurePatientId()
+      if (!ensuredPatientId || Number.isNaN(ensuredPatientId)) {
         antMessage.error('Missing patient id. Please login again.')
         navigate('/login')
         return
       }
 
+      // Backend slot is already ISO (UTC). We just normalize seconds/millis.
       const appointmentTimeISO = dayjs(formData.timeSlotISO).second(0).millisecond(0).toISOString()
 
       await appointmentsAPI.create({
-        patient_id: patientId,
+        patient_id: ensuredPatientId,
         doctor_id: formData.doctorId,
         medical_field_id: formData.specialtyId,
         appointment_time: appointmentTimeISO,
@@ -246,31 +288,63 @@ const BookAppointment = () => {
       const status = error?.response?.status
       const detail = error?.response?.data?.detail
 
-      if (status === 401) antMessage.error('Unauthorized. Please log in again.')
-      else if (status === 404) antMessage.error(detail || 'Doctor not found.')
-      else if (status === 409) antMessage.error(detail || 'This time slot is already booked.')
-      else antMessage.error(detail || 'Failed to book appointment')
+      if (status === 401) {
+        antMessage.error('Unauthorized. Please log in again.')
+      } else if (status === 404) {
+        antMessage.error(detail || 'Doctor not found.')
+      } else if (status === 409) {
+        // slot got taken between fetch + submit -> refresh UI
+        antMessage.error(detail || 'That slot was just booked. Please pick another time.')
+        setFormData((p) => ({ ...p, timeSlotISO: null }))
+        await fetchSlots(formData.doctorId, formData.date)
+      } else {
+        antMessage.error(detail || 'Failed to book appointment')
+      }
     } finally {
       setLoading(false)
     }
-  }
+  }, [
+    ensurePatientId,
+    fetchSlots,
+    formData.date,
+    formData.doctorId,
+    formData.notes,
+    formData.specialtyId,
+    formData.timeSlotISO,
+    loading,
+    navigate,
+    patientIdFromStore,
+    token,
+  ])
 
   const renderStepContent = () => {
     switch (currentStep) {
       case 0: {
         return (
           <div>
-            <Title level={4} style={{ marginBottom: 24 }}>
+            <Title level={4} style={{ marginBottom: 12 }}>
               Choose Your Specialty
             </Title>
 
+            <Input
+              size="large"
+              placeholder="Search specialties..."
+              prefix={<SearchOutlined />}
+              value={specialtySearch}
+              onChange={(e) => setSpecialtySearch(e.target.value)}
+              style={{ marginBottom: 16 }}
+              allowClear
+            />
+
             {loadingFields ? (
               <Skeleton active />
-            ) : specialties.length === 0 ? (
-              <Empty description="No specialties found" />
+            ) : filteredSpecialties.length === 0 ? (
+              <Empty
+                description={specialtySearch.trim() ? 'No specialties match your search' : 'No specialties found'}
+              />
             ) : (
               <Row gutter={[16, 16]}>
-                {specialties.map((specialty) => {
+                {filteredSpecialties.map((specialty) => {
                   const isSelected = formData.specialtyId === specialty.id
                   const Icon = resolveMedicalIconComponent(specialty.icon, specialty.name) || MedicineBoxOutlined
 
@@ -305,7 +379,7 @@ const BookAppointment = () => {
       case 1: {
         return (
           <div>
-            <Space style={{ marginBottom: 24 }} align="center">
+            <Space style={{ marginBottom: 12 }} align="center">
               <span style={{ fontSize: 22 }}>
                 <SelectedSpecialtyIcon />
               </span>
@@ -317,13 +391,28 @@ const BookAppointment = () => {
               </div>
             </Space>
 
+            <Input
+              size="large"
+              placeholder="Search doctors..."
+              prefix={<SearchOutlined />}
+              value={doctorSearch}
+              onChange={(e) => setDoctorSearch(e.target.value)}
+              style={{ marginBottom: 16 }}
+              allowClear
+              disabled={!formData.specialtyId}
+            />
+
             {loadingDoctors ? (
               <Skeleton active />
-            ) : doctors.length === 0 ? (
-              <Empty description="No doctors found for this specialty" />
+            ) : filteredDoctors.length === 0 ? (
+              <Empty
+                description={
+                  doctorSearch.trim() ? 'No doctors match your search' : 'No doctors found for this specialty'
+                }
+              />
             ) : (
               <Row gutter={[16, 16]}>
-                {doctors.map((doctor) => (
+                {filteredDoctors.map((doctor) => (
                   <Col xs={24} lg={12} key={doctor.id}>
                     <Card
                       hoverable
@@ -362,11 +451,7 @@ const BookAppointment = () => {
                             {doctor.specialization ? <Text type="secondary">{doctor.specialization}</Text> : null}
 
                             <Space split={<Divider type="vertical" />}>
-                              {doctor.years_of_experience != null ? (
-                                <Text type="secondary">{doctor.years_of_experience} yrs</Text>
-                              ) : (
-                                <Text type="secondary">—</Text>
-                              )}
+                              <Text type="secondary">{doctor.years_of_experience ?? '—'} yrs</Text>
 
                               {typeof doctor.rating === 'number' ? (
                                 <Space size="small">
@@ -378,9 +463,7 @@ const BookAppointment = () => {
                               )}
                             </Space>
 
-                            {doctor.consultation_fee != null ? (
-                              <Text type="secondary">₪{doctor.consultation_fee}</Text>
-                            ) : null}
+                            {doctor.consultation_fee != null ? <Text type="secondary">₪{doctor.consultation_fee}</Text> : null}
                           </Space>
                         </Col>
                       </Row>
@@ -411,13 +494,13 @@ const BookAppointment = () => {
                     disabled={!formData.doctorId}
                     disabledDate={(current) => current && current < dayjs().startOf('day')}
                     value={formData.date ? dayjs(formData.date, 'YYYY-MM-DD') : null}
-                    onChange={(date) =>
+                    onChange={(d) => {
                       setFormData((p) => ({
                         ...p,
-                        date: date?.format('YYYY-MM-DD') || null,
+                        date: d?.format('YYYY-MM-DD') || null,
                         timeSlotISO: null,
                       }))
-                    }
+                    }}
                   />
                   {!formData.doctorId ? (
                     <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
@@ -430,25 +513,23 @@ const BookAppointment = () => {
               <Col xs={24} md={12}>
                 <Card title="Available Time Slots">
                   {!formData.doctorId || !formData.date ? (
-                    <Empty description="Select doctor + date to see slots" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                    <Empty description="Select doctor + date to see slots" />
                   ) : loadingSlots ? (
                     <Skeleton active />
                   ) : timeSlots.length === 0 ? (
-                    <Empty description="No available slots" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                    <Empty description="No available slots" />
                   ) : (
                     <div style={{ maxHeight: 300, overflow: 'auto' }}>
                       <Row gutter={[8, 8]}>
                         {timeSlots.map((slot) => {
                           const iso = slot.start_time
                           const selected = formData.timeSlotISO === iso
-                          const disabled = slot.available === false
 
                           return (
                             <Col span={8} key={iso}>
                               <Button
                                 type={selected ? 'primary' : 'default'}
                                 block
-                                disabled={disabled}
                                 onClick={() => setFormData((p) => ({ ...p, timeSlotISO: iso }))}
                               >
                                 {formatTime(dayjs(iso).format('HH:mm'))}
@@ -476,7 +557,10 @@ const BookAppointment = () => {
       }
 
       case 3: {
-        const chosenTime = formData.timeSlotISO ? dayjs(formData.timeSlotISO).format('HH:mm') : null
+        // show confirm using ISO slot (source of truth)
+        const slot = formData.timeSlotISO ? dayjs(formData.timeSlotISO) : null
+        const chosenDate = slot ? slot.format('YYYY-MM-DD') : formData.date
+        const chosenTime = slot ? slot.format('HH:mm') : null
 
         return (
           <div>
@@ -508,7 +592,7 @@ const BookAppointment = () => {
                   <Space direction="vertical" size="small">
                     <Text type="secondary">Date</Text>
                     <Title level={5} style={{ margin: 0 }}>
-                      {formData.date ? formatDate(formData.date, 'dddd, MMMM DD, YYYY') : '-'}
+                      {chosenDate ? formatDate(chosenDate, 'dddd, MMMM DD, YYYY') : '-'}
                     </Title>
                   </Space>
                 </Col>
@@ -578,7 +662,7 @@ const BookAppointment = () => {
                 type="primary"
                 icon={<ArrowRightOutlined />}
                 onClick={handleNext}
-                disabled={!canProceed()}
+                disabled={!canProceed() || (currentStep === 2 && loadingSlots)}
                 size="large"
               >
                 Next
@@ -589,6 +673,7 @@ const BookAppointment = () => {
                 icon={<CheckCircleOutlined />}
                 onClick={handleSubmit}
                 loading={loading}
+                disabled={loading}
                 size="large"
               >
                 Confirm Booking

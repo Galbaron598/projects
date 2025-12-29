@@ -1,208 +1,241 @@
-"""
-Appointment Service - Business logic for appointment management
-"""
-
-from datetime import datetime, timedelta, time
-from typing import List, Dict, Optional
-from app.core.database import get_db
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional
+from zoneinfo import ZoneInfo
+from fastapi import HTTPException
 import logging
+
+from appointment_repository import AppointmentRepository
+from appointment_rules import (
+    ensure_tz,
+    validate_within_working_hours,
+    check_overlapping_conflict,
+    intervals_overlap,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def check_appointment_conflicts(
-    doctor_id: int,
-    appointment_time: datetime,
-    duration_minutes: int,
-    exclude_appointment_id: Optional[int] = None
-) -> bool:
-    """
-    Check if an appointment time conflicts with existing appointments
-    
-    Args:
-        doctor_id: Doctor ID
-        appointment_time: Proposed appointment time
-        duration_minutes: Duration of appointment
-        exclude_appointment_id: Appointment ID to exclude (for updates)
-        
-    Returns:
-        True if there's a conflict, False if slot is available
-    """
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cursor:
-                # Calculate end time
-                end_time = appointment_time + timedelta(minutes=duration_minutes)
-                
-                # Check for overlapping appointments
-                query = """
-                    SELECT COUNT(*) as conflict_count
-                    FROM appointments
-                    WHERE doctor_id = %s
-                      AND status NOT IN ('cancelled', 'no_show')
-                      AND (
-                          -- New appointment starts during existing appointment
-                          (appointment_time <= %s 
-                           AND appointment_time + (duration_minutes || ' minutes')::INTERVAL > %s)
-                          OR
-                          -- New appointment ends during existing appointment
-                          (appointment_time < %s
-                           AND appointment_time + (duration_minutes || ' minutes')::INTERVAL >= %s)
-                          OR
-                          -- New appointment completely contains existing appointment
-                          (appointment_time >= %s 
-                           AND appointment_time + (duration_minutes || ' minutes')::INTERVAL <= %s)
-                      )
-                """
-                params = [
-                    doctor_id,
-                    appointment_time, appointment_time,
-                    end_time, end_time,
-                    appointment_time, end_time
-                ]
-                
-                # Exclude current appointment if updating
-                if exclude_appointment_id:
-                    query += " AND id != %s"
-                    params.append(exclude_appointment_id)
-                
-                cursor.execute(query, params)
-                result = cursor.fetchone()
-                
-                has_conflict = result['conflict_count'] > 0
-                
-                if has_conflict:
-                    logger.info(f"Conflict found for doctor {doctor_id} at {appointment_time}")
-                else:
-                    logger.info(f"No conflict for doctor {doctor_id} at {appointment_time}")
-                
-                return has_conflict
-                
-    except Exception as e:
-        logger.error(f"Error checking conflicts: {e}")
-        raise
+class AppointmentService:
+    """Business logic layer for appointments"""
 
+    def __init__(self):
+        self.repo = AppointmentRepository()
 
-def get_available_time_slots(
-    doctor_id: int,
-    date: datetime.date,
-    timezone: str = 'UTC'
-) -> List[Dict]:
-    """
-    Get available time slots for a doctor on a specific date
-    
-    Args:
-        doctor_id: Doctor ID
-        date: Date to check
-        timezone: Timezone for the slots
-        
-    Returns:
-        List of available time slots with start and end times
-    """
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cursor:
-                # Get doctor's working hours for this day
-                day_of_week = (date.weekday() + 1) % 7  # Convert to 0=Sunday format
-                
-                cursor.execute("""
-                    SELECT start_time, end_time, slot_duration_minutes
-                    FROM doctor_working_hours
-                    WHERE doctor_id = %s 
-                      AND day_of_week = %s 
-                      AND is_active = TRUE
-                """, (doctor_id, day_of_week))
-                
-                working_hours = cursor.fetchone()
-                
-                if not working_hours:
-                    logger.info(f"Doctor {doctor_id} doesn't work on day {day_of_week}")
-                    return []
-                
-                # Get all booked appointments for this date
-                cursor.execute("""
-                    SELECT appointment_time, duration_minutes
-                    FROM appointments
-                    WHERE doctor_id = %s
-                      AND DATE(appointment_time AT TIME ZONE %s) = %s
-                      AND status NOT IN ('cancelled', 'no_show')
-                """, (doctor_id, timezone, date))
-                
-                booked_appointments = cursor.fetchall()
-                booked_times = {
-                    appt['appointment_time'].replace(tzinfo=None): appt['duration_minutes']
-                    for appt in booked_appointments
-                }
-                
-                # Generate all possible slots
-                available_slots = []
-                current_time = datetime.combine(date, working_hours['start_time'])
-                end_time = datetime.combine(date, working_hours['end_time'])
-                slot_duration = working_hours['slot_duration_minutes']
-                
-                while current_time + timedelta(minutes=slot_duration) <= end_time:
-                    # Check if this slot is booked
-                    is_booked = current_time in booked_times
-                    
-                    # Check if slot is in the past
-                    is_past = current_time < datetime.now()
-                    
-                    if not is_booked and not is_past:
-                        available_slots.append({
-                            'start_time': current_time.isoformat(),
-                            'end_time': (current_time + timedelta(minutes=slot_duration)).isoformat(),
-                            'duration_minutes': slot_duration,
-                            'available': True
-                        })
-                    
-                    current_time += timedelta(minutes=slot_duration)
-                
-                logger.info(f"Found {len(available_slots)} available slots for doctor {doctor_id} on {date}")
-                return available_slots
-                
-    except Exception as e:
-        logger.error(f"Error getting available slots: {e}")
-        raise
+    def validate_doctor_availability(self, cursor, doctor_id: int) -> Dict[str, Any]:
+        """Validate doctor exists and is available"""
+        doctor = self.repo.get_doctor_info(cursor, doctor_id)
+        if not doctor:
+            raise HTTPException(
+                status_code=404, detail=f"Doctor {doctor_id} not found"
+            )
+        if not doctor["is_available"]:
+            raise HTTPException(
+                status_code=400, detail="Doctor is not currently available"
+            )
+        return doctor
 
+    def validate_appointment_modifiable(self, appointment: Dict[str, Any]) -> None:
+        """Check if appointment can be modified"""
+        if appointment["status"] in ["completed", "no_show"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot modify completed or no-show appointments",
+            )
 
-def calculate_appointment_end_time(
-    start_time: datetime,
-    duration_minutes: int
-) -> datetime:
-    """
-    Calculate appointment end time
-    
-    Args:
-        start_time: Appointment start time
-        duration_minutes: Duration in minutes
-        
-    Returns:
-        End time as datetime
-    """
-    return start_time + timedelta(minutes=duration_minutes)
+    def check_doctor_time_slot(
+        self,
+        cursor,
+        doctor_id: int,
+        appointment_time: datetime,
+        duration_minutes: int,
+        doctor_tz: ZoneInfo,
+        exclude_appointment_id: Optional[int] = None,
+    ) -> None:
+        """Validate time slot against doctor's working hours and existing appointments"""
+        appt_start_utc = ensure_tz(appointment_time)
 
+        # Check working hours
+        validate_within_working_hours(
+            cursor,
+            doctor_id,
+            appt_start_utc,
+            duration_minutes,
+            doctor_tz,
+            enforce_slot_alignment=True,
+        )
 
-def validate_appointment_time(
-    appointment_time: datetime,
-    duration_minutes: int = 30
-) -> Dict[str, bool]:
-    """
-    Validate appointment time against business rules
-    
-    Args:
-        appointment_time: Proposed appointment time
-        duration_minutes: Duration of appointment
-        
-    Returns:
-        Dict with validation results
-    """
-    validations = {
-        'is_future': appointment_time > datetime.now(),
-        'is_business_hours': 8 <= appointment_time.hour <= 18,
-        'is_valid_duration': 15 <= duration_minutes <= 120,
-        'is_not_weekend': appointment_time.weekday() < 5,  # Monday=0, Sunday=6
-    }
-    
-    validations['is_valid'] = all(validations.values())
-    
-    return validations
+        # Check overlapping appointments
+        if check_overlapping_conflict(
+            cursor,
+            doctor_id=doctor_id,
+            appt_start_utc=appt_start_utc,
+            duration_minutes=duration_minutes,
+            exclude_appointment_id=exclude_appointment_id,
+        ):
+            raise HTTPException(
+                status_code=409, detail="This time slot is already booked"
+            )
+
+    def check_patient_conflicts(
+        self,
+        cursor,
+        patient_id: int,
+        appointment_time: datetime,
+        duration_minutes: int,
+    ) -> None:
+        """Check if patient has conflicting appointments"""
+        appt_start_utc = ensure_tz(appointment_time)
+        appt_end_utc = appt_start_utc + timedelta(minutes=duration_minutes)
+
+        patient_appointments = self.repo.get_patient_appointments(
+            cursor, patient_id, statuses=["scheduled", "confirmed"]
+        )
+
+        for existing in patient_appointments:
+            existing_start = ensure_tz(existing["appointment_time"])
+            existing_end = existing_start + timedelta(
+                minutes=int(existing["duration_minutes"] or 30)
+            )
+
+            if intervals_overlap(
+                existing_start, existing_end, appt_start_utc, appt_end_utc
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="You already have an appointment at this time",
+                )
+
+    def create_appointment(
+        self,
+        cursor,
+        patient_id: int,
+        doctor_id: int,
+        medical_field_id: int,
+        appointment_time: datetime,
+        duration_minutes: Optional[int],
+        reason_for_visit: Optional[str],
+    ) -> Dict[str, Any]:
+        """Create a new appointment with all validations"""
+        # Validate doctor
+        doctor = self.validate_doctor_availability(cursor, doctor_id)
+        doctor_tz = ZoneInfo(doctor["time_zone"] or "Asia/Jerusalem")
+
+        duration = int(duration_minutes or 30)
+        appt_start_utc = ensure_tz(appointment_time)
+
+        # Validate time slot
+        self.check_doctor_time_slot(
+            cursor, doctor_id, appt_start_utc, duration, doctor_tz
+        )
+
+        # Check patient conflicts
+        self.check_patient_conflicts(cursor, patient_id, appt_start_utc, duration)
+
+        # Create appointment
+        new_appointment = self.repo.create_appointment(
+            cursor,
+            patient_id,
+            doctor_id,
+            medical_field_id,
+            appt_start_utc,
+            duration,
+            reason_for_visit,
+        )
+
+        # Enrich with doctor details
+        doctor_details = self.repo.get_doctor_details(cursor, doctor_id)
+        return {**new_appointment, **doctor_details}
+
+    def update_appointment(
+        self,
+        cursor,
+        appointment_id: int,
+        appointment_time: Optional[datetime] = None,
+        status: Optional[str] = None,
+        notes: Optional[str] = None,
+        cancellation_reason: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Update an appointment with validations"""
+        # Fetch existing appointment
+        existing = self.repo.get_appointment_simple(cursor, appointment_id)
+        if not existing:
+            raise HTTPException(
+                status_code=404, detail=f"Appointment {appointment_id} not found"
+            )
+
+        # Validate modifiable
+        self.validate_appointment_modifiable(existing)
+
+        updates = {}
+
+        # Handle rescheduling
+        if appointment_time is not None:
+            doctor = self.repo.get_doctor_info(cursor, existing["doctor_id"])
+            doctor_tz = ZoneInfo((doctor and doctor["time_zone"]) or "Asia/Jerusalem")
+
+            new_start_utc = ensure_tz(appointment_time)
+            duration = int(existing["duration_minutes"] or 30)
+
+            self.check_doctor_time_slot(
+                cursor,
+                existing["doctor_id"],
+                new_start_utc,
+                duration,
+                doctor_tz,
+                exclude_appointment_id=appointment_id,
+            )
+
+            updates["appointment_time"] = new_start_utc
+
+        # Handle status change
+        if status:
+            if status in ["completed", "no_show"]:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only staff can mark appointments as completed or no-show",
+                )
+            updates["status"] = status
+            if status == "cancelled":
+                updates["cancelled_at"] = "NOW()"
+
+        # Handle notes and cancellation reason
+        if notes is not None:
+            updates["notes"] = notes
+        if cancellation_reason is not None:
+            updates["cancellation_reason"] = cancellation_reason
+
+        if not updates:
+            raise HTTPException(
+                status_code=400, detail="No valid update fields provided"
+            )
+
+        # Perform update
+        updated_appointment = self.repo.update_appointment(
+            cursor, appointment_id, updates
+        )
+
+        # Enrich with doctor details
+        doctor_details = self.repo.get_doctor_details(
+            cursor, updated_appointment["doctor_id"]
+        )
+        return {**updated_appointment, **doctor_details}
+
+    def cancel_appointment(self, cursor, appointment_id: int) -> None:
+        """Cancel an appointment with validations"""
+        appointment = self.repo.get_appointment_simple(cursor, appointment_id)
+        if not appointment:
+            raise HTTPException(
+                status_code=404, detail=f"Appointment {appointment_id} not found"
+            )
+
+        if appointment["status"] in ["completed", "no_show"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot cancel completed or no-show appointments",
+            )
+        if appointment["status"] == "cancelled":
+            raise HTTPException(
+                status_code=400, detail="Appointment is already cancelled"
+            )
+
+        self.repo.cancel_appointment(cursor, appointment_id)

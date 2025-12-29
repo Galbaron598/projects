@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore'
 const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8000'
 const API_SERVICE_URL = import.meta.env.VITE_API_SERVICE_URL || 'http://localhost:8001'
 
-const DEFAULT_TIMEOUT_MS = 15000
+const DEFAULT_TIMEOUT_MS = 9999999999999999999999999999999999
 
 const authService = axios.create({
   baseURL: AUTH_SERVICE_URL,
@@ -156,49 +156,55 @@ const requirePatientId = () => {
 export const appointmentsAPI = {
   create: (appointmentData) => apiService.post('/api/appointments', appointmentData),
 
-  // ✅ your backend /api/appointments uses token -> no patient_id param
   getAll: ({ status_filter, limit = 50, offset = 0 } = {}) =>
     apiService.get('/api/appointments', { params: { status_filter, limit, offset } }),
 
-  // ✅ /upcoming requires patient_id in YOUR FastAPI
   getUpcoming: (limit = 100) => {
     const patient_id = requirePatientId()
     return apiService.get('/api/appointments/upcoming', { params: { patient_id, limit } })
   },
 
-  // ✅ /past does NOT accept patient_id in YOUR FastAPI
-  getPast: (limit = 50, offset = 0) =>
-    apiService.get('/api/appointments/past', { params: { limit, offset } }),
+  getPast: (limit = 50, offset = 0) => {
+    const patient_id = requirePatientId()
+    return apiService.get('/api/appointments/past', { params: { patient_id, limit, offset } })
+  },
 
   getById: (id) => apiService.get(`/api/appointments/${id}`),
 
   update: (id, updateData) => apiService.patch(`/api/appointments/${id}`, updateData),
 
-  // ✅ cancel uses PATCH (your backend supports status + cancellation_reason)
   cancel: (id, cancellationReason = null) =>
     apiService.patch(`/api/appointments/${id}`, {
       status: 'cancelled',
       cancellation_reason: cancellationReason,
     }),
-
-  // NOTE: your backend AppointmentUpdate currently does NOT include appointment_time,
-  // so reschedule cannot be done via PATCH unless you add it to schema + SQL update.
 }
 
 export const patientsAPI = {
-  exists: (phoneNumber) => apiService.get('/api/patients/exists', { params: { phone_number: phoneNumber } }),
-  create: (phoneNumber) => apiService.post('/api/patients/new', { phone_number: phoneNumber }),
+  exists: (phoneNumber) =>
+    apiService.get('/api/patients/exists', {
+      params: { phone_number: phoneNumber },
+    }),
 
-  // ✅ token-based profile endpoints
-  getProfile: (patientId) => apiService.get('/api/patients/profile', { params: { patientId: patientId } }),
-  updateProfile: (data) => apiService.patch('/api/patients/profile',  { params: { data: data}}),
-}
+  create: (phoneNumber) =>
+    apiService.post('/api/patients/new', {
+      phone_number: phoneNumber,
+    }),
 
-export const patientAPI = {
-  getMe: patientsAPI.getProfile,
-  updateMe: patientsAPI.updateProfile,
+  getProfile: (patient_id) => {
+    const pid = patient_id ?? requirePatientId()
+    return apiService.get('/api/patients/profile', {
+      params: { patient_id: patient_id },
+    })
+  },
+
+  updateProfile: (data, patient_id) => {
+    const pid = patient_id ?? requirePatientId()
+    return apiService.patch('/api/patients/profile', data, {
+      params: { patient_id: pid },
+    })
+  },
 }
-export const userAPI = patientAPI
 
 export default {
   authService,
@@ -207,7 +213,5 @@ export default {
   medicalFieldsAPI,
   doctorsAPI,
   appointmentsAPI,
-  patientsAPI,
-  patientAPI,
-  userAPI,
+  patientsAPI
 }

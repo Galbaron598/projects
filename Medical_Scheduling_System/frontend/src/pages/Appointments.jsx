@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   Card,
   Tabs,
@@ -28,6 +28,7 @@ import dayjs from 'dayjs'
 import { appointmentsAPI, doctorsAPI } from '../services/api'
 import { formatDate, formatTime, getRelativeDate, getStatusColor, getStatusText } from '../utils/helpers'
 import { useAuthStore } from '../store/authStore'
+import useEnsurePatientInStore from '../hooks/useEnsurePatientInStore'
 
 const { Title, Text } = Typography
 const { TabPane } = Tabs
@@ -59,7 +60,11 @@ const normalizeAppointment = (row) => {
 }
 
 export default function Appointments() {
-  const patientId = useAuthStore((s) => s.patientId)
+  const token = useAuthStore((s) => s.token)
+  const patientIdFromStore = useAuthStore((s) => s.patientId)
+
+  // ✅ ensure patient exists + store patientId (prevents double create in StrictMode)
+  const { ensurePatientId } = useEnsurePatientInStore()
 
   const [activeTab, setActiveTab] = useState('upcoming')
   const [appointments, setAppointments] = useState([])
@@ -96,32 +101,32 @@ export default function Appointments() {
     if (activeTab === 'past') setPastPage(1)
   }, [activeTab])
 
-  useEffect(() => {
-    fetchAppointments()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, pastPage])
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     setLoading(true)
     try {
+      if (!token) {
+        setAppointments([])
+        setPastHasMore(false)
+        return
+      }
+
+      const ensuredPatientId = patientIdFromStore ? Number(patientIdFromStore) : await ensurePatientId()
+      if (!ensuredPatientId || Number.isNaN(ensuredPatientId)) {
+        setAppointments([])
+        setPastHasMore(false)
+        return
+      }
+
       if (activeTab === 'upcoming') {
-        if (!patientId) {
-          setAppointments([])
-          setLoading(false)
-          return
-        }
-        // upcoming endpoint supports limit (+ patient_id), no offset
-        const res = await appointmentsAPI.getUpcoming(50, patientId)
+        const res = await appointmentsAPI.getUpcoming(50) // patient_id comes from store in api wrapper
         const rows = Array.isArray(res?.data) ? res.data : []
         setAppointments(rows.map(normalizeAppointment))
+        setPastHasMore(false)
       } else {
-        // past endpoint supports limit + offset
         const offset = (pastPage - 1) * PAGE_SIZE
         const res = await appointmentsAPI.getPast(PAGE_SIZE, offset)
         const rows = Array.isArray(res?.data) ? res.data : []
-        const normalized = rows.map(normalizeAppointment)
-
-        setAppointments(normalized)
+        setAppointments(rows.map(normalizeAppointment))
         setPastHasMore(rows.length === PAGE_SIZE)
       }
     } catch (e) {
@@ -131,7 +136,11 @@ export default function Appointments() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeTab, ensurePatientId, pastPage, patientIdFromStore, token])
+
+  useEffect(() => {
+    fetchAppointments()
+  }, [fetchAppointments])
 
   const filteredAppointments = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -151,7 +160,7 @@ export default function Appointments() {
     if (!selectedAppointment) return
     setCancelling(true)
     try {
-      await appointmentsAPI.delete(selectedAppointment.id, null)
+      await appointmentsAPI.cancel(selectedAppointment.id, null)
       antMessage.success('Appointment cancelled successfully')
       setCancelModalVisible(false)
       setSelectedAppointment(null)
@@ -171,17 +180,16 @@ export default function Appointments() {
     setRescheduleVisible(true)
   }
 
-  // load slots for reschedule modal
-  useEffect(() => {
-    const loadSlots = async () => {
-      if (!rescheduleVisible || !selectedAppointment?.doctorId || !rescheduleDate) {
+  const fetchRescheduleSlots = useCallback(
+    async (doctorId, date) => {
+      if (!doctorId || !date) {
         setRescheduleSlots([])
         return
       }
 
       setLoadingSlots(true)
       try {
-        const res = await doctorsAPI.getAvailableSlots(selectedAppointment.doctorId, rescheduleDate)
+        const res = await doctorsAPI.getAvailableSlots(doctorId, date)
         const slots = Array.isArray(res?.data?.available_slots) ? res.data.available_slots : []
 
         const normalized = slots
@@ -196,25 +204,40 @@ export default function Appointments() {
       } finally {
         setLoadingSlots(false)
       }
-    }
+    },
+    [setRescheduleSlots]
+  )
 
-    loadSlots()
-  }, [rescheduleVisible, selectedAppointment?.doctorId, rescheduleDate])
+  // load slots for reschedule modal
+  useEffect(() => {
+    if (!rescheduleVisible || !selectedAppointment?.doctorId || !rescheduleDate) {
+      setRescheduleSlots([])
+      return
+    }
+    fetchRescheduleSlots(selectedAppointment.doctorId, rescheduleDate)
+  }, [fetchRescheduleSlots, rescheduleVisible, rescheduleDate, selectedAppointment?.doctorId])
 
   const handleConfirmReschedule = async () => {
+    if (rescheduling) return
     if (!selectedAppointment || !selectedSlotISO) return
-    if (!patientId) {
+    if (!token) {
+      antMessage.error('Unauthorized. Please login again.')
+      return
+    }
+
+    const ensuredPatientId = patientIdFromStore ? Number(patientIdFromStore) : await ensurePatientId()
+    if (!ensuredPatientId || Number.isNaN(ensuredPatientId)) {
       antMessage.error('Missing patient id. Please login again.')
       return
     }
 
     setRescheduling(true)
     try {
-      // 1) create new appointment
+      // 1) create new appointment (slot ISO is source of truth)
       const newTimeISO = dayjs(selectedSlotISO).second(0).millisecond(0).toISOString()
 
       await appointmentsAPI.create({
-        patient_id: patientId,
+        patient_id: ensuredPatientId,
         doctor_id: selectedAppointment.doctorId,
         medical_field_id: selectedAppointment.medicalFieldId,
         appointment_time: newTimeISO,
@@ -222,19 +245,30 @@ export default function Appointments() {
         reason_for_visit: selectedAppointment.reasonForVisit ?? null,
       })
 
-      // // 2) cancel old appointment
-      await appointmentsAPI.delete(selectedAppointment.id, 'cancelled')
+      // 2) cancel old appointment (use cancel wrapper, not delete)
+      await appointmentsAPI.cancel(selectedAppointment.id, 'rescheduled')
 
       antMessage.success('Appointment rescheduled successfully')
       setRescheduleVisible(false)
       setSelectedAppointment(null)
+      setRescheduleDate(null)
+      setRescheduleSlots([])
+      setSelectedSlotISO(null)
       await fetchAppointments()
     } catch (e) {
       const status = e?.response?.status
       const detail = e?.response?.data?.detail
 
-      if (status === 409) antMessage.error(detail || 'This time slot is already booked.')
-      else antMessage.error(detail || e?.errorData?.message || 'Failed to reschedule appointment')
+      if (status === 409) {
+        antMessage.error(detail || 'That slot was just booked. Please pick another time.')
+        setSelectedSlotISO(null)
+        // refresh slots so the taken one disappears
+        if (selectedAppointment?.doctorId && rescheduleDate) {
+          await fetchRescheduleSlots(selectedAppointment.doctorId, rescheduleDate)
+        }
+      } else {
+        antMessage.error(detail || e?.errorData?.message || 'Failed to reschedule appointment')
+      }
     } finally {
       setRescheduling(false)
     }
@@ -439,7 +473,6 @@ export default function Appointments() {
                   {rescheduleSlots.map((slot) => {
                     const iso = slot.start_time
                     const selected = selectedSlotISO === iso
-                    const disabled = slot.available === false
                     const label = iso ? dayjs(iso).format('HH:mm') : '—'
 
                     return (
@@ -447,7 +480,6 @@ export default function Appointments() {
                         <Button
                           type={selected ? 'primary' : 'default'}
                           block
-                          disabled={disabled}
                           onClick={() => setSelectedSlotISO(iso)}
                         >
                           {formatTime(label)}
