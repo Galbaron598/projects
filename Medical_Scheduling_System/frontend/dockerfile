@@ -20,16 +20,13 @@ ARG VITE_API_SERVICE_URL=http://localhost:8001
 
 # Set environment variables for build
 ENV VITE_AUTH_SERVICE_URL=$VITE_AUTH_SERVICE_URL
-ENV VITEAPI_SERVICE_URL=$VITE_API_SERVICE_URL
+ENV VITE_API_SERVICE_URL=$VITE_API_SERVICE_URL
 
-# Build application (Create React App builds to 'build' folder)
+# Build application
 RUN npm run build
 
 # Stage 2: Production with Nginx
 FROM nginx:alpine
-
-# Copy built files from builder stage (use 'build' not 'dist')
-COPY --from=builder /app/build /usr/share/nginx/html
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
