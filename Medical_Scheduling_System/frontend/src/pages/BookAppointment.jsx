@@ -34,7 +34,6 @@ import { useAuthStore } from '../store/authStore'
 import useEnsurePatientInStore from '../hooks/useEnsurePatientInStore'
 
 const { Title, Text, Paragraph } = Typography
-const { TextArea } = Input
 const { Step } = Steps
 
 const BookAppointment = () => {
@@ -543,15 +542,6 @@ const BookAppointment = () => {
                 </Card>
               </Col>
             </Row>
-
-            <Card title="Additional Notes (Optional)" style={{ marginTop: 24 }}>
-              <TextArea
-                rows={4}
-                placeholder="Any specific concerns or symptoms you'd like to mention..."
-                value={formData.notes}
-                onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
-              />
-            </Card>
           </div>
         )
       }

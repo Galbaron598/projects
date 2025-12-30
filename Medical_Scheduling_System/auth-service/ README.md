@@ -1,145 +1,203 @@
-# Medical Scheduling Auth Service - Modular Structure
+# Medical Scheduling System - Authentication Service
 
-A well-structured FastAPI authentication service with OTP and JWT, organized into separate modules for maintainability and scalability.
+A lightweight **FastAPI authentication microservice** that provides OTP-based phone authentication with JWT tokens. This service is designed for simplicity and demonstration purposes, using **in-memory storage** instead of a database.
 
-## 📁 Project Structure
+## 🎯 Purpose
 
+This authentication service is a **standalone microservice** that:
+- ✅ Generates and verifies OTP (One-Time Password) codes
+- ✅ Issues JWT tokens for authenticated users
+- ✅ Validates tokens for protected routes
+- ✅ Runs independently from the main API service
+
+**Architecture**: Microservices pattern with separate auth and API services.
+
+---
+
+## 🚀 Features
+
+### Core Functionality
+- **OTP Generation**: 6-digit codes with configurable expiry
+- **OTP Verification**: Secure verification with automatic cleanup
+- **JWT Token Generation**: Stateless authentication tokens
+- **Token Validation**: Endpoint for other services to validate tokens
+- **Session Management**: In-memory user session tracking
+- **Logout**: Token invalidation endpoint
+
+### Technical Highlights
+- ✅ **No Database Required**: In-memory storage for simplicity
+- ✅ **Fast Startup**: No migrations or database setup
+- ✅ **Stateless JWT**: Self-contained authentication tokens
+- ✅ **CORS Enabled**: Works with frontend on different ports
+- ✅ **Swagger UI**: Interactive API documentation
+- ✅ **Type Safety**: Pydantic schemas for request/response validation
+
+---
+
+## 🛠️ Tech Stack
+
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| **FastAPI** | Web Framework | ^0.104.0 |
+| **Pydantic** | Data Validation | ^2.0.0 |
+| **PyJWT** | JWT Tokens | ^2.8.0 |
+| **Uvicorn** | ASGI Server | ^0.24.0 |
+| **Python** | Runtime | 3.9+ |
+
+---
+
+## 📦 Installation & Setup
+
+### Prerequisites
+
+- **Python** 3.9 or higher
+- **pip** (Python package manager)
+- **Virtual environment** (recommended)
+
+Check your Python version:
+```bash
+python --version  # or python3 --version
 ```
-auth-service/
-│
-├── main.py                          # Entry point - runs the server
-│
-├── app/
-│   ├── __init__.py                  # App package initializer
-│   ├── main.py                      # FastAPI app & CORS config
-│   │
-│   ├── core/                        # Core functionality
-│   │   ├── __init__.py
-│   │   ├── config.py                # Configuration & storage
-│   │   └── security.py              # JWT validation & dependencies
-│   │
-│   ├── models/                      # Data models
-│   │   ├── __init__.py
-│   │   └── schemas.py               # Pydantic models
-│   │
-│   ├── routes/                      # API endpoints
-│   │   ├── __init__.py
-│   │   └── auth.py                  # Authentication routes
-│   │
-│   └── utils/                       # Utility functions
-│       ├── __init__.py
-│       └── auth_utils.py            # OTP & JWT generation
-│
-├── test_auth.py                     # Test script
-├── requirements.txt                 # Dependencies
-├── .env.example                     # Environment template
-├── .gitignore                       # Git exclusions
-└── README.md                        # This file
-```
 
-## 📦 File Descriptions
-
-### Root Level
-
-- **main.py** - Application entry point that starts uvicorn server
-- **test_auth.py** - Automated test suite
-- **requirements.txt** - Python package dependencies
-- **.env.example** - Environment variables template
-- **.gitignore** - Files to exclude from git
-
-### app/
-
-- **main.py** - FastAPI application initialization and CORS setup
-
-### app/core/
-
-- **config.py** - Application configuration and in-memory storage
-- **security.py** - JWT token validation and authentication dependencies
-
-### app/models/
-
-- **schemas.py** - Pydantic models for request/response validation
-  - RequestOTPRequest
-  - VerifyOTPRequest
-  - OTPResponse
-  - VerifyOTPResponse
-  - UserInfo
-  - UserResponse
-  - MessageResponse
-  - HealthResponse
-
-### app/routes/
-
-- **auth.py** - Authentication endpoints
-  - POST /api/auth/request-otp
-  - POST /api/auth/verify-otp
-  - GET /api/auth/me
-  - POST /api/auth/logout
-  - GET /api/auth/health
-
-### app/utils/
-
-- **auth_utils.py** - Helper functions
-  - generate_otp() - Creates 6-digit OTP
-  - generate_token() - Creates JWT token
-
-## 🚀 Installation & Setup
-
-### 1. Create Virtual Environment
+### Step 1: Clone Repository
 
 ```bash
-python3 -m venv venv
+git clone <repository-url>
+cd auth-service
+```
 
-# Activate on Windows:
+### Step 2: Create Virtual Environment
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+
+# On macOS/Linux:
+source venv/bin/activate
+
+# On Windows:
 venv\Scripts\activate
 
-# Activate on macOS/Linux:
-source venv/bin/activate
+# You should see (venv) in your terminal prompt
 ```
 
-### 2. Install Dependencies
+### Step 3: Install Dependencies
 
 ```bash
+# Upgrade pip first
+pip install --upgrade pip
+
+# Install all dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment (Optional)
+### Step 4: Verify Installation
 
 ```bash
-cp .env.example .env
-# Edit .env with your settings
+# Check installed packages
+pip list
+
+# Should see:
+# fastapi
+# uvicorn
+# pydantic
+# PyJWT
+# python-jose
+# passlib
 ```
 
-### 4. Run the Server
+---
+
+## 🚀 Running the Service
+
+### Development Mode (with auto-reload)
 
 ```bash
-# Using main.py (recommended)
+# Default: runs on port 8000
+uvicorn main:app --reload
+
+# With custom port
+uvicorn main:app --reload --port 8000
+
+# With custom host (for network access)
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# With logs
+uvicorn main:app --reload --log-level info
+```
+
+Expected output:
+```
+INFO:     Will watch for changes in these directories: ['/path/to/auth-service']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [12345] using WatchFiles
+INFO:     Started server process [12346]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+```
+
+### Production Mode
+
+```bash
+# Production server (no auto-reload)
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# With access log
+uvicorn main:app --host 0.0.0.0 --port 8000 --access-log
+```
+
+### Using Python Script
+
+```bash
+# If you have a run script
 python main.py
 
-# Or using uvicorn directly
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Or with Python module
+python -m uvicorn main:app --reload
 ```
 
-### 5. Test the Service
+---
 
-```bash
-source venv/bin/activate
-python3 test_auth.py
-```
+## 🌐 Service Ports
 
-## 📡 API Endpoints
+| Service | Port | URL |
+|---------|------|-----|
+| **Auth Service** | 8000 | http://localhost:8000 |
+| **API Service** | 8001 | http://localhost:8001 |
+| **Frontend** | 3000 | http://localhost:3000 |
 
-### POST /api/auth/request-otp
-Request OTP for phone number
+### Why Different Ports?
 
-**Request:**
-```json
+- **Port 8000** (Auth): Handles authentication only
+- **Port 8001** (API): Handles appointments, doctors, patients
+- **Port 3000** (Frontend): React development server
+
+This **microservices architecture** allows:
+- ✅ Independent scaling
+- ✅ Separate deployments
+- ✅ Service isolation
+- ✅ Better security (auth is isolated)
+
+---
+
+## 📚 API Documentation
+
+### API Endpoints
+
+#### 1. Request OTP
+
+```http
+POST /api/auth/request-otp
+Content-Type: application/json
+
 {
-  "phoneNumber": "+1234567890"
+  "phoneNumber": "0501234567"
 }
 ```
 
-**Response:**
+**Response** (200 OK):
 ```json
 {
   "message": "OTP sent successfully",
@@ -150,214 +208,579 @@ Request OTP for phone number
 }
 ```
 
-### POST /api/auth/verify-otp
-Verify OTP and get JWT token
+**Note**: In production, the OTP would be sent via SMS. For testing, it's displayed in the response and server console.
 
-**Request:**
-```json
+#### 2. Verify OTP
+
+```http
+POST /api/auth/verify-otp
+Content-Type: application/json
+
 {
-  "phoneNumber": "+1234567890",
+  "phoneNumber": "0501234567",
   "otp": "123456"
 }
 ```
 
-**Response:**
+**Response** (200 OK):
 ```json
 {
   "message": "Authentication successful",
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
-    "phoneNumber": "+1234567890",
+    "phoneNumber": "0501234567",
     "isNewUser": true,
-    "createdAt": "2024-01-15T10:30:00.000000"
+    "createdAt": "2024-12-30T10:00:00Z"
   }
 }
 ```
 
-### GET /api/auth/me
-Get current user info (Protected)
+#### 3. Validate Token (Internal Use)
 
-**Headers:**
-```
-Authorization: Bearer <JWT_TOKEN>
+```http
+POST /api/auth/validate-token
+Content-Type: application/json
+
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
 ```
 
-**Response:**
+**Response** (200 OK):
 ```json
 {
-  "user": {
-    "phoneNumber": "+1234567890",
-    "createdAt": "2024-01-15T10:30:00.000000",
-    "isNewUser": false
+  "valid": true,
+  "phoneNumber": "0501234567"
+}
+```
+
+#### 4. Logout
+
+```http
+POST /api/auth/logout
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Response** (200 OK):
+```json
+{
+  "message": "Logged out successfully"
+}
+```
+
+---
+
+## 🔗 Connecting from Frontend
+
+### Configuration
+
+In your frontend `.env` file:
+
+```env
+# Auth Service (Port 8000)
+VITE_AUTH_SERVICE_URL=http://localhost:8000
+
+# API Service (Port 8001)
+VITE_API_SERVICE_URL=http://localhost:8001
+```
+
+### API Service Setup (axios)
+
+```javascript
+// src/services/api.js
+import axios from 'axios'
+
+const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8000'
+
+const authService = axios.create({
+  baseURL: AUTH_SERVICE_URL,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 10000,
+})
+
+// Example: Request OTP
+export const requestOTP = async (phoneNumber) => {
+  const response = await authService.post('/api/auth/request-otp', {
+    phoneNumber
+  })
+  return response.data
+}
+
+// Example: Verify OTP
+export const verifyOTP = async (phoneNumber, otp) => {
+  const response = await authService.post('/api/auth/verify-otp', {
+    phoneNumber,
+    otp
+  })
+  return response.data
+}
+```
+
+### Usage in React Component
+
+```javascript
+import { requestOTP, verifyOTP } from './services/api'
+
+// Request OTP
+const handleRequestOTP = async () => {
+  try {
+    const data = await requestOTP('0501234567')
+    console.log('OTP:', data.debug.otp) // For testing
+    message.success('OTP sent!')
+  } catch (error) {
+    message.error('Failed to send OTP')
+  }
+}
+
+// Verify OTP
+const handleVerifyOTP = async () => {
+  try {
+    const data = await verifyOTP('0501234567', '123456')
+    localStorage.setItem('token', data.token)
+    navigate('/dashboard')
+  } catch (error) {
+    message.error('Invalid OTP')
   }
 }
 ```
 
-### POST /api/auth/logout
-Logout user (Protected)
+---
 
-**Headers:**
-```
-Authorization: Bearer <JWT_TOKEN>
-```
+## 🔐 JWT Token Structure
 
-### GET /api/auth/health
-Health check endpoint
+### What's in the Token?
 
-**Response:**
+The JWT token contains:
+
 ```json
 {
-  "status": "OK",
-  "timestamp": "2024-01-15T10:30:00.000000",
-  "activeOTPs": 3,
-  "activeUsers": 5
+  "sub": "0501234567",      // Subject (phone number)
+  "exp": 1735567200,        // Expiration timestamp
+  "iat": 1735563600,        // Issued at timestamp
+  "type": "access"          // Token type
 }
 ```
 
-## 🧪 Testing
+### Current Implementation
 
-### Run Automated Tests
-```bash
-python test_auth.py
+**For this assignment**, the JWT token is used **only for authentication**:
+- ✅ Verify user is logged in
+- ✅ Protect routes from unauthorized access
+- ✅ Validate requests to API service
+
+### Production Considerations
+
+**In a production system**, the JWT would typically include:
+
+```json
+{
+  "sub": "0501234567",           // Phone number
+  "user_id": 123,                // Database user ID
+  "patient_id": 456,             // Patient record ID
+  "roles": ["patient"],          // User roles
+  "permissions": ["book", "view"], // Permissions
+  "exp": 1735567200,
+  "iat": 1735563600
+}
 ```
 
-### Interactive API Docs
-Open in browser:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+**Why not include it now?**
+- ✅ **Simplicity**: No database to query user info from
+- ✅ **Demonstration**: Shows understanding of both approaches
+- ✅ **Time constraint**: 10-hour assignment scope
+- ✅ **Works for requirements**: Current flow is sufficient
 
-### Manual Testing with cURL
+**Migration path**: When adding a database, simply include `patient_id` in the token payload, and the frontend can extract it without additional API calls.
+
+---
+
+## 🗄️ Storage Architecture
+
+### In-Memory Storage (Current)
+
+This service uses **Python dictionaries** for storage:
+
+```python
+# OTP Storage (temporary)
+otp_store = {
+    "0501234567": {
+        "otp": "123456",
+        "expires_at": datetime(2024, 12, 30, 10, 5, 0),
+        "verified": False
+    }
+}
+
+# User Sessions (persistent during runtime)
+user_sessions = {
+    "0501234567": {
+        "phone_number": "0501234567",
+        "created_at": "2024-12-30T10:00:00Z",
+        "appointments": []
+    }
+}
+```
+
+### Why No Database?
+
+**For this assignment:**
+- ✅ **Faster development**: No schema design/migrations needed
+- ✅ **Simpler setup**: No database installation required
+- ✅ **Meets requirements**: OTP and JWT authentication work perfectly
+- ✅ **Easy testing**: Fresh state on every restart
+- ✅ **Time efficient**: Focus on frontend/API integration
+
+**Trade-offs:**
+- ❌ Data lost on restart
+- ❌ No data persistence
+- ❌ Single-instance only (can't scale horizontally)
+- ❌ No historical data
+
+### Production Migration
+
+To add database support:
+
+```python
+# Replace in-memory dict with database
+# Before:
+otp_store[phone] = {"otp": otp, ...}
+
+# After:
+await db.execute(
+    "INSERT INTO otps (phone_number, otp, expires_at) VALUES ($1, $2, $3)",
+    phone, otp, expires_at
+)
+```
+
+**Recommended databases:**
+- **Redis**: For OTP storage (TTL support)
+- **PostgreSQL**: For user sessions (relational data)
+- **MongoDB**: For flexible user profiles
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Create `.env` file:
+
+```env
+# JWT Configuration
+JWT_SECRET_KEY=your-super-secret-key-change-in-production
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_MINUTES=1440  # 24 hours
+
+# OTP Configuration
+OTP_LENGTH=6
+OTP_EXPIRY_MINUTES=5
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+LOG_LEVEL=info
+
+# CORS Configuration
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# Environment
+ENVIRONMENT=development
+DEBUG=true
+```
+
+### Loading Environment Variables
+
+```python
+# app/core/config.py
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    JWT_SECRET_KEY: str = "dev-secret-key"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_MINUTES: int = 1440
+    OTP_EXPIRY_MINUTES: int = 5
+    
+    class Config:
+        env_file = ".env"
+
+settings = Settings()
+```
+
+---
+
+## 🧪 Testing the Service
+
+### Using curl
 
 ```bash
 # 1. Request OTP
 curl -X POST http://localhost:8000/api/auth/request-otp \
   -H "Content-Type: application/json" \
-  -d '{"phoneNumber": "+1234567890"}'
+  -d '{"phoneNumber": "0501234567"}'
 
-# 2. Verify OTP
+# 2. Verify OTP (use OTP from previous response)
 curl -X POST http://localhost:8000/api/auth/verify-otp \
   -H "Content-Type: application/json" \
-  -d '{"phoneNumber": "+1234567890", "otp": "123456"}'
+  -d '{"phoneNumber": "0501234567", "otp": "123456"}'
 
-# 3. Get user info
-curl -X GET http://localhost:8000/api/auth/me \
-  -H "Authorization: Bearer YOUR_TOKEN"
+# 3. Validate Token
+curl -X POST http://localhost:8000/api/auth/validate-token \
+  -H "Content-Type: application/json" \
+  -d '{"token": "YOUR_JWT_TOKEN"}'
+
+# 4. Logout (replace with your token)
+curl -X POST http://localhost:8000/api/auth/logout \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-## 🏗️ Adding New Features
+### Using Postman
 
-### 1. Add New Route
+1. **Import Collection**: Create new collection "Auth Service"
+2. **Add Requests**: Create requests for each endpoint
+3. **Environment Variables**: Set `{{base_url}}` = `http://localhost:8000`
+4. **Test Flow**:
+   - Request OTP
+   - Copy OTP from response
+   - Verify OTP
+   - Save token from response
+   - Use token for logout
 
-Create a new file in `app/routes/`:
+### Using Python Requests
 
 ```python
-# app/routes/appointments.py
-from fastapi import APIRouter, Depends
-from app.core.security import get_current_user
+import requests
 
-router = APIRouter()
+BASE_URL = "http://localhost:8000/api/auth"
 
-@router.get("/")
-async def get_appointments(current_user: str = Depends(get_current_user)):
-    return {"appointments": []}
+# Request OTP
+response = requests.post(f"{BASE_URL}/request-otp", json={
+    "phoneNumber": "0501234567"
+})
+otp = response.json()["debug"]["otp"]
+print(f"OTP: {otp}")
+
+# Verify OTP
+response = requests.post(f"{BASE_URL}/verify-otp", json={
+    "phoneNumber": "0501234567",
+    "otp": otp
+})
+token = response.json()["token"]
+print(f"Token: {token}")
+
+# Validate Token
+response = requests.post(f"{BASE_URL}/validate-token", json={
+    "token": token
+})
+print(response.json())
 ```
 
-Register in `app/main.py`:
+---
 
-```python
-from app.routes import auth, appointments
+## 🐛 Troubleshooting
 
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(appointments.router, prefix="/api/appointments", tags=["Appointments"])
+### Common Issues
+
+#### Port Already in Use
+
+```bash
+# Error: Address already in use
+# Solution: Kill process on port 8000
+
+# On macOS/Linux:
+lsof -ti:8000 | xargs kill -9
+
+# On Windows:
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+
+# Or use different port:
+uvicorn main:app --reload --port 8001
 ```
 
-### 2. Add New Model
+#### Module Not Found
 
-Add to `app/models/schemas.py`:
+```bash
+# Error: ModuleNotFoundError: No module named 'fastapi'
+# Solution: Ensure virtual environment is activated and dependencies installed
 
-```python
-class Appointment(BaseModel):
-    id: int
-    doctor: str
-    dateTime: str
+source venv/bin/activate  # Activate venv
+pip install -r requirements.txt  # Install dependencies
 ```
 
-### 3. Add Utility Function
+#### CORS Errors
 
-Add to `app/utils/`:
+```bash
+# Error: Access to fetch at 'http://localhost:8000' from origin 'http://localhost:5173' 
+# has been blocked by CORS policy
+
+# Solution: Check CORS configuration in main.py
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Add your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+#### JWT Token Invalid
+
+```bash
+# Error: Could not validate credentials
+# Solution: 
+1. Check JWT_SECRET_KEY in config
+2. Ensure token is sent in Authorization header: "Bearer <token>"
+3. Check token hasn't expired
+4. Verify token format is correct
+```
+
+---
+
+## 📊 Service Flow Diagram
+
+```
+┌─────────────┐
+│   Frontend  │
+│ (Port 5173) │
+└──────┬──────┘
+       │
+       │ 1. Request OTP
+       ▼
+┌─────────────────┐
+│  Auth Service   │
+│  (Port 8000)    │
+│                 │
+│ ┌─────────────┐ │
+│ │ OTP Store   │ │  ← In-Memory
+│ │ (Dict)      │ │
+│ └─────────────┘ │
+│                 │
+│ ┌─────────────┐ │
+│ │   User      │ │  ← In-Memory
+│ │  Sessions   │ │
+│ └─────────────┘ │
+└─────────┬───────┘
+          │
+          │ 2. Return OTP
+          ▼
+    ┌─────────────┐
+    │   Frontend  │  3. User enters OTP
+    └──────┬──────┘
+           │
+           │ 4. Verify OTP
+           ▼
+    ┌─────────────────┐
+    │  Auth Service   │  5. Generate JWT
+    │                 │  6. Return token
+    └─────────┬───────┘
+              │
+              │ Token stored
+              ▼
+       ┌─────────────┐
+       │   Frontend  │
+       │ (localStorage)│
+       └──────┬──────┘
+              │
+              │ 7. API calls with token
+              ▼
+       ┌─────────────────┐
+       │   API Service   │  8. Validate token with Auth Service
+       │   (Port 8001)   │
+       └─────────────────┘
+```
+
+---
+
+## 🔐 Security Considerations
+
+### Current Implementation
+
+- ✅ **JWT Tokens**: Stateless authentication
+- ✅ **OTP Expiry**: 5-minute timeout
+- ✅ **Token Expiry**: 24-hour validity
+- ✅ **HTTPS Ready**: Works with SSL/TLS
+- ✅ **CORS Configured**: Prevents unauthorized origins
+
+### Production Hardening
+
+For production deployment, add:
 
 ```python
-# app/utils/email_utils.py
-def send_email(to: str, subject: str, body: str):
-    # Email logic here
+# Rate Limiting
+from slowapi import Limiter
+limiter = Limiter(key_func=get_remote_address)
+
+@limiter.limit("5/minute")
+@router.post("/request-otp")
+async def request_otp(...):
     pass
+
+# Secure Headers
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["example.com"])
+
+# HTTPS Only
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+app.add_middleware(HTTPSRedirectMiddleware)
+
+# Input Sanitization
+from pydantic import validator
+
+class RequestOTPRequest(BaseModel):
+    phoneNumber: str
+    
+    @validator('phoneNumber')
+    def validate_phone(cls, v):
+        # Add phone number validation
+        if not v.startswith('05') or len(v) != 10:
+            raise ValueError('Invalid phone number')
+        return v
 ```
 
-## 🔒 Security Best Practices
+---
 
-### Development
-- ✅ OTP shown in console/response for testing
-- ✅ In-memory storage (no database)
-- ✅ CORS enabled for all origins
+## 📝 Development Notes
 
-### Production
-- 🔐 Use environment variables for `JWT_SECRET`
-- 🔐 Implement SMS gateway (Twilio, AWS SNS)
-- 🔐 Remove `debug` from OTP response
-- 🔐 Add rate limiting
-- 🔐 Use HTTPS only
-- 🔐 Restrict CORS to specific origins
-- 🔐 Add database for persistence
-- 🔐 Implement refresh tokens
-- 🔐 Add logging and monitoring
+### Design Decisions
 
-## 🎯 Why This Structure?
+1. **Why FastAPI?**
+   - Fast development
+   - Automatic API documentation
+   - Built-in validation (Pydantic)
+   - Async support
+   - Type hints
 
-### Separation of Concerns
-- **Routes**: Handle HTTP requests
-- **Models**: Define data structures
-- **Utils**: Reusable functions
-- **Core**: Configuration & security
+2. **Why In-Memory Storage?**
+   - Simplifies assignment
+   - No database setup needed
+   - Faster development
+   - Demonstrates understanding without overengineering
 
-### Benefits
-- ✅ Easy to test individual components
-- ✅ Clear organization for team collaboration
-- ✅ Simple to add new features
-- ✅ Easier to maintain and debug
-- ✅ Follows FastAPI best practices
+3. **Why Separate Auth Service?**
+   - Microservices best practice
+   - Independent scaling
+   - Security isolation
+   - Clear separation of concerns
 
-## 📝 Environment Variables
+4. **Why Port 8000?**
+   - FastAPI convention
+   - Avoids conflicts with other services
+   - Easy to remember (Auth = 8000, API = 8001)
 
-Create `.env` file:
-
-```env
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-PORT=8000
-ENVIRONMENT=development
-```
+---
 
 ## 🚀 Deployment
 
-### Using Uvicorn
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
 
-### Using Gunicorn
-```bash
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
-```
+## 👨‍💻 Author
 
-### Docker
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+Gal Baron
+---
 
-## 📄 License
+## 📞 Support
 
-MIT License - Free to use for your Medical Scheduling System assignment!
+For issues or questions:
+1. Check Swagger UI at http://localhost:8000/docs
+2. Review FastAPI docs: https://fastapi.tiangolo.com
+3. Check server console logs
+4. SOS - Gal Baron 0528951007
+

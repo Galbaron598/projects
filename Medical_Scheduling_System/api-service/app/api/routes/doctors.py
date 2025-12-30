@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
+from sqlalchemy.orm import Session
 import logging
 
 from app.schemas.doctor import DoctorResponse, DoctorDetailResponse
 from app.core.database import get_db
-from app.services.doctors_repository import DoctorRepository
+from app.repository.doctors_repository import DoctorRepository
 from app.services.doctors_service import DoctorService
 
 logger = logging.getLogger(__name__)
@@ -13,6 +14,7 @@ router = APIRouter(prefix="/api/doctors", tags=["Doctors"])
 
 @router.get("/", response_model=List[DoctorResponse])
 async def get_doctors(
+    db: Session = Depends(get_db),
     medical_field_id: Optional[int] = Query(
         None, description="Filter by medical field"
     ),
@@ -27,17 +29,15 @@ async def get_doctors(
 ):
     """Get list of doctors with optional filters"""
     try:
-        with get_db() as conn:
-            with conn.cursor() as cursor:
-                repo = DoctorRepository()
-                return repo.get_doctors(
-                    cursor,
-                    medical_field_id=medical_field_id,
-                    min_rating=min_rating,
-                    search=search,
-                    limit=limit,
-                    offset=offset,
-                )
+        repo = DoctorRepository()
+        return repo.get_doctors(
+            db,
+            medical_field_id=medical_field_id,
+            min_rating=min_rating,
+            search=search,
+            limit=limit,
+            offset=offset,
+        )
 
     except Exception as e:
         logger.error(f"Error fetching doctors: {e}")
@@ -48,13 +48,11 @@ async def get_doctors(
 
 
 @router.get("/{doctor_id}", response_model=DoctorDetailResponse)
-async def get_doctor(doctor_id: int):
+async def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
     """Get detailed information about a specific doctor"""
     try:
-        with get_db() as conn:
-            with conn.cursor() as cursor:
-                service = DoctorService()
-                return service.get_doctor_with_details(cursor, doctor_id)
+        service = DoctorService()
+        return service.get_doctor_with_details(db, doctor_id)
 
     except HTTPException:
         raise
@@ -68,6 +66,7 @@ async def get_doctor(doctor_id: int):
 @router.get("/{doctor_id}/available-slots")
 async def get_available_slots(
     doctor_id: int,
+    db: Session = Depends(get_db),
     date: str = Query(..., description="Date in YYYY-MM-DD format"),
 ):
     """
@@ -75,10 +74,8 @@ async def get_available_slots(
     Returns only free slots (no overlaps) in ISO format.
     """
     try:
-        with get_db() as conn:
-            with conn.cursor() as cursor:
-                service = DoctorService()
-                return service.get_available_slots(cursor, doctor_id, date)
+        service = DoctorService()
+        return service.get_available_slots(db, doctor_id, date)
 
     except HTTPException:
         raise

@@ -7,9 +7,6 @@ import {
   MedicineBoxOutlined,
 } from '@ant-design/icons'
 
-/**
- * Return a COMPONENT (not JSX), so callers render it like: <Icon />
- */
 export const resolveMedicalIconComponent = (icon, name = '') => {
   const key = String(icon || name).toLowerCase().trim()
 

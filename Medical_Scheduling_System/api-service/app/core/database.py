@@ -1,56 +1,114 @@
-
-import psycopg2
-from psycopg2 import pool
-from psycopg2.extras import RealDictCursor
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from contextlib import contextmanager
-from app.core.config import get_settings
+from typing import Generator
 import logging
+
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-class DatabasePool:
-    """Singleton connection pool for better performance"""
-    _pool = None
-    
-    @classmethod
-    def get_pool(cls):
-        if cls._pool is None:
-            try:
-                cls._pool = psycopg2.pool.ThreadedConnectionPool(
-                    minconn=settings.DB_POOL_MIN_CONN,
-                    maxconn=settings.DB_POOL_MAX_CONN,
-                    host=settings.DB_HOST,
-                    port=settings.DB_PORT,
-                    database=settings.DB_NAME,
-                    user=settings.DB_USER,
-                    password=settings.DB_PASSWORD,
-                    cursor_factory=RealDictCursor
-                )
-                logger.info(f"Database connection pool created (min={settings.DB_POOL_MIN_CONN}, max={settings.DB_POOL_MAX_CONN})")
-            except Exception as e:
-                logger.error(f"Failed to create database pool: {e}")
-                raise
-        return cls._pool
-    
-    @classmethod
-    def close_pool(cls):
-        if cls._pool:
-            cls._pool.closeall()
-            cls._pool = None
-            logger.info("Database connection pool closed")
+# Create the declarative base - THIS IS WHAT YOUR MODELS NEED
+Base = declarative_base()
 
-@contextmanager
-def get_db():
-    """Get database connection from pool"""
-    pool = DatabasePool.get_pool()
-    conn = pool.getconn()
+# Build database URL
+DATABASE_URL = (
+    f"postgresql://{settings.DB_USER}:{settings.DB_PASSWORD}"
+    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+)
+
+# Create engine with connection pooling (replaces psycopg2 pool)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,  # Verify connections before using
+    pool_size=settings.DB_POOL_MIN_CONN,  # Minimum connections in pool
+    max_overflow=settings.DB_POOL_MAX_CONN - settings.DB_POOL_MIN_CONN,  # Additional connections
+    echo=False,  # Set to True to see SQL queries in logs
+    pool_recycle=3600,  # Recycle connections after 1 hour
+)
+
+# Create SessionLocal class (replaces your cursor-based connections)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def get_db() -> Generator[Session, None, None]:
+    """
+    Dependency for FastAPI routes to get database session
+    
+    This replaces your old get_db() that returned a connection.
+    Now it returns a SQLAlchemy Session.
+    
+    Usage:
+        @router.get("/")
+        async def endpoint(db: Session = Depends(get_db)):
+            repo = AppointmentRepository()
+            return repo.get_appointments(db, patient_id=1)
+    """
+    db = SessionLocal()
     try:
-        yield conn
-        conn.commit()
+        yield db
+        db.commit()  # Auto-commit on success
     except Exception as e:
-        conn.rollback()
+        db.rollback()  # Auto-rollback on error
         logger.error(f"Database error: {e}")
         raise
     finally:
-        pool.putconn(conn)
+        db.close()
+
+
+@contextmanager
+def get_db_context():
+    """
+    Context manager for database session (non-FastAPI usage)
+    
+    Usage:
+        with get_db_context() as db:
+            repo = AppointmentRepository()
+            appointments = repo.get_appointments(db, patient_id=1)
+    """
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Database error: {e}")
+        raise
+    finally:
+        db.close()
+
+
+def init_db():
+    """
+    Initialize database tables
+    Run this once to create all tables from your models
+    """
+    Base.metadata.create_all(bind=engine)
+    logger.info("✅ Database tables created successfully!")
+
+
+def drop_db():
+    """
+    Drop all database tables
+    WARNING: Use with caution! This deletes all data.
+    """
+    Base.metadata.drop_all(bind=engine)
+    logger.info("⚠️  Database tables dropped!")
+
+
+def close_db():
+    """
+    Close database connection pool
+    Call this on application shutdown
+    """
+    engine.dispose()
+    logger.info("Database connection pool closed")
+
+
+# Log successful initialization
+logger.info(
+    f"Database connection pool initialized "
+    f"(pool_size={settings.DB_POOL_MIN_CONN}, "
+    f"max_overflow={settings.DB_POOL_MAX_CONN - settings.DB_POOL_MIN_CONN})"
+)

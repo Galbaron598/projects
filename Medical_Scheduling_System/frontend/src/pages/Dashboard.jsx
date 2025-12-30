@@ -132,7 +132,7 @@ const Dashboard = () => {
         }}
       >
         <Title level={2} style={{ color: '#fff', marginBottom: 8 }}>
-          {isNewUser ? 'Welcome to MediCare!' : `Welcome back, ${user?.fullName?.split(' ')[0] || 'there'}!`}
+          {isNewUser ? 'Welcome to MediCare!' : `Welcome back, ${user?.full_name?.split(' ')[0] || 'there'}!`}
         </Title>
         <Paragraph style={{ color: 'rgba(255,255,255,0.9)', fontSize: 16, marginBottom: 0 }}>
           {isNewUser ? "Let's get started with your first appointment" : 'Manage your health appointments with ease'}

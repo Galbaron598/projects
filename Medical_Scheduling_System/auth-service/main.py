@@ -1,22 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth
-# import os
-# import debugpy
-
-# # Only listen in the real server process (not the reloader)
-
-# debugpy.listen(("0.0.0.0", 5679))
-# print("✅ API debugpy listening on 5679")
-# # debugpy.wait_for_client()  # optional
-
-import os
-
-if os.getenv("DEBUGPY", "0") == "1":
-    import debugpy
-    debugpy.listen(("0.0.0.0", 5678))
-    print("✅ debugpy listening on 5678")
-
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -28,7 +12,7 @@ app = FastAPI(
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ⚠️ restrict in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

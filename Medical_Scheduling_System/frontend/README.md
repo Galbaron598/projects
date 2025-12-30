@@ -32,52 +32,34 @@ A modern, professional medical appointment booking system built with **React**, 
 | **Day.js** | Date Manipulation | ^1.11.10 |
 | **Vite** | Build Tool | ^5.0.8 |
 
-## 📁 Project Structure
-
-```
-medical-scheduling-frontend/
-├── public/                      # Static assets
-├── src/
-│   ├── components/              # Reusable components
-│   │   ├── Layout.jsx          # Main layout with sidebar
-│   │   ├── Loading.jsx         # Loading spinner component
-│   │   ├── Error.jsx           # Error display component
-│   │   └── ErrorBoundary.jsx   # Error boundary wrapper
-│   ├── pages/                   # Page components
-│   │   ├── Login.jsx           # OTP authentication
-│   │   ├── Dashboard.jsx       # Home dashboard
-│   │   ├── BookAppointment.jsx # Multi-step booking
-│   │   ├── Appointments.jsx    # Appointment list
-│   │   └── Profile.jsx         # User profile
-│   ├── services/
-│   │   └── api.js              # Axios instance & API methods
-│   ├── store/
-│   │   └── authStore.js        # Zustand auth state
-│   ├── utils/
-│   │   └── helpers.js          # Utility functions
-│   ├── App.jsx                 # Main app component
-│   ├── main.jsx                # Entry point
-│   └── index.css               # Global styles
-├── .env.example                 # Environment variables template
-├── package.json                 # Dependencies
-├── vite.config.js              # Vite configuration
-└── README.md                    # This file
-```
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- Node.js 16+ and npm/yarn/pnpm
+# 📦 Dependencies
+
+This project uses the following main libraries:
+
+- **React 18** – UI framework
+- **React Router DOM** – Client-side routing
+- **Ant Design** – UI component library
+- **Zustand** – State management
+- **Axios** – HTTP client
+- **Day.js** – Date and time utilities
+
+### Development Tools
+
+- **Vite** – Build tool and dev server
+- **ESLint** – Linting and code quality
 
 ### Installation
 
 1. **Clone the repository**:
 ```bash
 git clone <repository-url>
-cd medical-scheduling-frontend
+cd rontend
 ```
-
 2. **Install dependencies**:
+Install all dependencies (including development dependencies):
 ```bash
 npm install
 ```
@@ -87,11 +69,6 @@ npm install
 cp .env.example .env
 ```
 
-4. **Update `.env` with your configuration**:
-```env
-VITE_API_BASE_URL=http://localhost:5000/api
-```
-
 5. **Start the development server**:
 ```bash
 npm run dev
@@ -99,12 +76,6 @@ npm run dev
 
 The app will be available at `http://localhost:3000`
 
-## 🎯 Available Scripts
-
-- `npm run dev` - Start development server (Vite)
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
 
 ## 🎨 UI Components (Ant Design)
 
@@ -203,24 +174,6 @@ export const useAuthStore = create(
 )
 ```
 
-### Usage in Components
-
-```javascript
-import { useAuthStore } from './store/authStore'
-
-function MyComponent() {
-  // Get entire state
-  const { user, isAuthenticated, login, logout } = useAuthStore()
-  
-  // Or select specific values (better performance)
-  const user = useAuthStore((state) => state.user)
-  const login = useAuthStore((state) => state.login)
-  
-  // Use in your component
-  return <div>{user?.name}</div>
-}
-```
-
 ## 🔐 Authentication Flow
 
 1. **User enters phone number** → Validation
@@ -253,7 +206,7 @@ function MyComponent() {
 
 ### 3. Book Appointment (`/book`)
 Multi-step wizard:
-1. **Choose Specialty**: 6 medical specialties
+1. **Choose Specialty**: choose one medical specialty
 2. **Select Doctor**: Doctor profiles with ratings
 3. **Pick Date & Time**: Calendar and time slot picker
 4. **Confirm**: Review and submit
@@ -268,13 +221,11 @@ Features:
 - Tabs: Upcoming & Past
 - Search functionality
 - Cancel appointments
-- Reschedule option (coming soon)
-- Status badges (Confirmed, Pending, Completed, Cancelled)
+- Reschedule option
+- Status badges (Confirmed, Completed, Cancelled)
 
 ### 5. Profile (`/profile`)
 - Personal information editing
-- Family member management
-- Medical history
 - Emergency contacts
 - Edit/Save modes
 
@@ -295,32 +246,6 @@ const fetchAppointments = async () => {
   }
 }
 ```
-
-### API Endpoints
-
-```javascript
-// Auth
-authAPI.sendOTP(phoneNumber)
-authAPI.verifyOTP(phoneNumber, otp)
-
-// Medical Fields
-medicalFieldsAPI.getAll()
-
-// Doctors
-doctorsAPI.getBySpecialty(specialtyId)
-doctorsAPI.getAvailableSlots(doctorId, date)
-
-// Appointments
-appointmentsAPI.create(data)
-appointmentsAPI.getUpcoming()
-appointmentsAPI.getPast()
-appointmentsAPI.cancel(id)
-
-// User
-userAPI.updateProfile(data)
-userAPI.getFamilyMembers()
-```
-
 ### Connecting to Real Backend
 
 1. Update `VITE_API_BASE_URL` in `.env`
@@ -355,16 +280,6 @@ import Error from './components/Error'
 />
 
 // Error types: error, warning, info, notFound, unauthorized
-```
-
-### Error Boundary
-
-Wraps the entire app to catch React errors:
-
-```javascript
-<ErrorBoundary>
-  <App />
-</ErrorBoundary>
 ```
 
 ## 🚢 Deployment
@@ -422,9 +337,7 @@ Set these in your deployment platform:
 - State management is centralized
 
 ### Performance
-- Lazy loading routes (can be added)
 - Optimized re-renders with Zustand selectors
-- Ant Design tree-shaking for smaller bundle
 - Vite for fast builds
 
 ### Accessibility
@@ -441,24 +354,6 @@ Set these in your deployment platform:
 - Medical history is static
 - No real-time notifications
 
-### Planned Features
-- [ ] Real-time appointment notifications
-- [ ] Video consultation integration
-- [ ] Prescription management
-- [ ] Insurance integration
-- [ ] Multi-language support (i18n)
-- [ ] Dark mode
-- [ ] Export appointments to calendar
-- [ ] Email/SMS reminders
-- [ ] Doctor availability calendar
-- [ ] Payment integration
-
-## 📊 Performance Metrics
-
-- **Bundle Size**: ~500KB (gzipped)
-- **First Contentful Paint**: <1.5s
-- **Time to Interactive**: <3s
-- **Lighthouse Score**: 90+ (Performance, Accessibility)
 
 ## 🤝 Contributing
 
@@ -474,7 +369,7 @@ Created for CORTEX R&D Center recruitment process.
 
 ## 🙏 Acknowledgments
 
-- **Ant Design** - For excellent React components
+- **Ant Design** - For React components
 - **Zustand** - For simple state management
 - **Vite** - For blazing fast build tool
 - **Day.js** - For lightweight date manipulation
@@ -489,6 +384,3 @@ For questions or issues:
 2. Review Ant Design documentation: https://ant.design
 3. Review Zustand documentation: https://github.com/pmndrs/zustand
 
----
-
-**Built with ❤️ using React, Ant Design, and Zustand**

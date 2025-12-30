@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
 import logging
 
 from app.schemas.patient import PatientResponse, PatientUpdate, PatientCreate
@@ -9,18 +10,16 @@ from app.services.patient_service import PatientService
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/patients", tags=["Patients"])
 
-
 @router.get("/profile", response_model=PatientResponse)
 async def get_current_patient(
+    db: Session = Depends(get_db),
     _: dict = Depends(verify_token),
     patient_id: int = Query(..., gt=0, description="Patient id"),
 ):
     """Get patient information by patient_id (auth required)"""
     try:
-        with get_db() as conn:
-            with conn.cursor() as cursor:
-                service = PatientService()
-                return service.get_patient_profile(cursor, patient_id)
+        service = PatientService()
+        return service.get_patient_profile(db, patient_id)
 
     except HTTPException:
         raise
@@ -31,19 +30,17 @@ async def get_current_patient(
             detail="Failed to retrieve patient information",
         )
 
-
 @router.patch("/profile", response_model=PatientResponse)
 async def update_current_patient(
     update_data: PatientUpdate,
+    db: Session = Depends(get_db),
     patient_id: int = Query(..., gt=0, description="Patient id"),
     _: dict = Depends(verify_token),
 ):
     """Update patient profile by patient_id (auth required)"""
     try:
-        with get_db() as conn:
-            with conn.cursor() as cursor:
-                service = PatientService()
-                return service.update_patient_profile(cursor, patient_id, update_data)
+        service = PatientService()
+        return service.update_patient_profile(db, patient_id, update_data)
 
     except HTTPException:
         raise
@@ -54,15 +51,12 @@ async def update_current_patient(
             detail="Failed to update patient information",
         )
 
-
 @router.post("/new", response_model=PatientResponse, status_code=status.HTTP_201_CREATED)
-async def create_patient(payload: PatientCreate):
+async def create_patient(payload: PatientCreate, db: Session = Depends(get_db)):
     """Create a new patient (phone number only)"""
     try:
-        with get_db() as conn:
-            with conn.cursor() as cursor:
-                service = PatientService()
-                return service.create_or_get_patient(cursor, payload.phone_number)
+        service = PatientService()
+        return service.create_or_get_patient(db, payload.phone_number)
 
     except HTTPException:
         raise
@@ -73,15 +67,15 @@ async def create_patient(payload: PatientCreate):
             detail="Failed to create patient",
         )
 
-
 @router.get("/exists")
-async def patient_exists(phone_number: str = Query(..., min_length=7, max_length=20)):
+async def patient_exists(
+    phone_number: str = Query(..., min_length=7, max_length=20),
+    db: Session = Depends(get_db)
+):
     """Check if a patient exists by phone number"""
     try:
-        with get_db() as conn:
-            with conn.cursor() as cursor:
-                service = PatientService()
-                return service.check_patient_exists(cursor, phone_number)
+        service = PatientService()
+        return service.check_patient_exists(db, phone_number)
 
     except Exception as e:
         logger.error(f"Error checking patient existence: {e}")

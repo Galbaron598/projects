@@ -74,7 +74,6 @@ const Profile = () => {
           ? dayjs(user.dateOfBirth)
           : null,
 
-      // ✅ now backend fields
       emergencyContact: user?.emergency_contact ?? user?.emergencyContact ?? '',
       address: user?.address ?? '',
     }
@@ -100,7 +99,6 @@ const Profile = () => {
         email: values.email?.trim() || null,
         date_of_birth: values.dateOfBirth ? values.dateOfBirth.format('YYYY-MM-DD') : null,
 
-        // ✅ persisted now
         emergency_contact: values.emergencyContact?.trim() || null,
         address: values.address?.trim() || null,
       }
@@ -117,8 +115,7 @@ const Profile = () => {
     }
   }
 
-  const patientIdForUI = patientIdFromStore || '-'
-
+  
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <Card

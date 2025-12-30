@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore'
 const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8000'
 const API_SERVICE_URL = import.meta.env.VITE_API_SERVICE_URL || 'http://localhost:8001'
 
-const DEFAULT_TIMEOUT_MS = 9999999999999999999999999999999999
+const DEFAULT_TIMEOUT_MS = 5000
 
 const authService = axios.create({
   baseURL: AUTH_SERVICE_URL,
@@ -127,7 +127,6 @@ export const authAPI = {
 export const medicalFieldsAPI = {
   getAll: () => apiService.get('/api/medical-fields'),
   getById: (id) => apiService.get(`/api/medical-fields/${id}`),
-  getDoctorsCount: (fieldId) => apiService.get(`/api/medical-fields/${fieldId}/doctors-count`),
 }
 
 export const doctorsAPI = {
@@ -143,7 +142,6 @@ export const doctorsAPI = {
     apiService.get('/api/doctors', { params: { search: searchTerm, ...params } }),
 }
 
-// ✅ store-based patientId helper (used only where backend needs it)
 const requirePatientId = () => {
   const patientId = useAuthStore.getState().patientId
   const n = Number(patientId)

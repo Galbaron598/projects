@@ -2,10 +2,11 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from zoneinfo import ZoneInfo
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 import logging
 
-from appointment_repository import AppointmentRepository
-from appointment_rules import (
+from app.repository.appointment_repository import AppointmentRepository
+from .appointment_rules import (
     ensure_tz,
     validate_within_working_hours,
     check_overlapping_conflict,
@@ -14,16 +15,15 @@ from appointment_rules import (
 
 logger = logging.getLogger(__name__)
 
-
 class AppointmentService:
     """Business logic layer for appointments"""
 
     def __init__(self):
         self.repo = AppointmentRepository()
 
-    def validate_doctor_availability(self, cursor, doctor_id: int) -> Dict[str, Any]:
+    def validate_doctor_availability(self, db: Session, doctor_id: int) -> Dict[str, Any]:
         """Validate doctor exists and is available"""
-        doctor = self.repo.get_doctor_info(cursor, doctor_id)
+        doctor = self.repo.get_doctor_info(db, doctor_id)
         if not doctor:
             raise HTTPException(
                 status_code=404, detail=f"Doctor {doctor_id} not found"
@@ -44,7 +44,7 @@ class AppointmentService:
 
     def check_doctor_time_slot(
         self,
-        cursor,
+        db: Session,
         doctor_id: int,
         appointment_time: datetime,
         duration_minutes: int,
@@ -56,7 +56,7 @@ class AppointmentService:
 
         # Check working hours
         validate_within_working_hours(
-            cursor,
+            db,
             doctor_id,
             appt_start_utc,
             duration_minutes,
@@ -66,7 +66,7 @@ class AppointmentService:
 
         # Check overlapping appointments
         if check_overlapping_conflict(
-            cursor,
+            db,
             doctor_id=doctor_id,
             appt_start_utc=appt_start_utc,
             duration_minutes=duration_minutes,
@@ -78,7 +78,7 @@ class AppointmentService:
 
     def check_patient_conflicts(
         self,
-        cursor,
+        db: Session,
         patient_id: int,
         appointment_time: datetime,
         duration_minutes: int,
@@ -88,7 +88,7 @@ class AppointmentService:
         appt_end_utc = appt_start_utc + timedelta(minutes=duration_minutes)
 
         patient_appointments = self.repo.get_patient_appointments(
-            cursor, patient_id, statuses=["scheduled", "confirmed"]
+            db, patient_id, statuses=["scheduled", "confirmed"]
         )
 
         for existing in patient_appointments:
@@ -107,7 +107,7 @@ class AppointmentService:
 
     def create_appointment(
         self,
-        cursor,
+        db: Session,
         patient_id: int,
         doctor_id: int,
         medical_field_id: int,
@@ -117,7 +117,7 @@ class AppointmentService:
     ) -> Dict[str, Any]:
         """Create a new appointment with all validations"""
         # Validate doctor
-        doctor = self.validate_doctor_availability(cursor, doctor_id)
+        doctor = self.validate_doctor_availability(db, doctor_id)
         doctor_tz = ZoneInfo(doctor["time_zone"] or "Asia/Jerusalem")
 
         duration = int(duration_minutes or 30)
@@ -125,15 +125,15 @@ class AppointmentService:
 
         # Validate time slot
         self.check_doctor_time_slot(
-            cursor, doctor_id, appt_start_utc, duration, doctor_tz
+            db, doctor_id, appt_start_utc, duration, doctor_tz
         )
 
         # Check patient conflicts
-        self.check_patient_conflicts(cursor, patient_id, appt_start_utc, duration)
+        self.check_patient_conflicts(db, patient_id, appt_start_utc, duration)
 
         # Create appointment
         new_appointment = self.repo.create_appointment(
-            cursor,
+            db,
             patient_id,
             doctor_id,
             medical_field_id,
@@ -143,12 +143,12 @@ class AppointmentService:
         )
 
         # Enrich with doctor details
-        doctor_details = self.repo.get_doctor_details(cursor, doctor_id)
+        doctor_details = self.repo.get_doctor_details(db, doctor_id)
         return {**new_appointment, **doctor_details}
 
     def update_appointment(
         self,
-        cursor,
+        db: Session,
         appointment_id: int,
         appointment_time: Optional[datetime] = None,
         status: Optional[str] = None,
@@ -157,7 +157,7 @@ class AppointmentService:
     ) -> Dict[str, Any]:
         """Update an appointment with validations"""
         # Fetch existing appointment
-        existing = self.repo.get_appointment_simple(cursor, appointment_id)
+        existing = self.repo.get_appointment_simple(db, appointment_id)
         if not existing:
             raise HTTPException(
                 status_code=404, detail=f"Appointment {appointment_id} not found"
@@ -170,14 +170,14 @@ class AppointmentService:
 
         # Handle rescheduling
         if appointment_time is not None:
-            doctor = self.repo.get_doctor_info(cursor, existing["doctor_id"])
+            doctor = self.repo.get_doctor_info(db, existing["doctor_id"])
             doctor_tz = ZoneInfo((doctor and doctor["time_zone"]) or "Asia/Jerusalem")
 
             new_start_utc = ensure_tz(appointment_time)
             duration = int(existing["duration_minutes"] or 30)
 
             self.check_doctor_time_slot(
-                cursor,
+                db,
                 existing["doctor_id"],
                 new_start_utc,
                 duration,
@@ -198,12 +198,6 @@ class AppointmentService:
             if status == "cancelled":
                 updates["cancelled_at"] = "NOW()"
 
-        # Handle notes and cancellation reason
-        if notes is not None:
-            updates["notes"] = notes
-        if cancellation_reason is not None:
-            updates["cancellation_reason"] = cancellation_reason
-
         if not updates:
             raise HTTPException(
                 status_code=400, detail="No valid update fields provided"
@@ -211,18 +205,18 @@ class AppointmentService:
 
         # Perform update
         updated_appointment = self.repo.update_appointment(
-            cursor, appointment_id, updates
+            db, appointment_id, updates
         )
 
         # Enrich with doctor details
         doctor_details = self.repo.get_doctor_details(
-            cursor, updated_appointment["doctor_id"]
+            db, updated_appointment["doctor_id"]
         )
         return {**updated_appointment, **doctor_details}
 
-    def cancel_appointment(self, cursor, appointment_id: int) -> None:
+    def cancel_appointment(self, db: Session, appointment_id: int) -> None:
         """Cancel an appointment with validations"""
-        appointment = self.repo.get_appointment_simple(cursor, appointment_id)
+        appointment = self.repo.get_appointment_simple(db, appointment_id)
         if not appointment:
             raise HTTPException(
                 status_code=404, detail=f"Appointment {appointment_id} not found"
@@ -238,4 +232,4 @@ class AppointmentService:
                 status_code=400, detail="Appointment is already cancelled"
             )
 
-        self.repo.cancel_appointment(cursor, appointment_id)
+        self.repo.cancel_appointment(db, appointment_id)

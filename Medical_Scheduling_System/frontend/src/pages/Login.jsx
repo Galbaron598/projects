@@ -41,7 +41,7 @@ const Login = () => {
     try {
       setPhoneNumber(phone)
 
-      // ✅ Call auth-service
+      // Call auth-service
       const res = await authAPI.requestOTP(phone)
 
       // Optional: show debug OTP if backend returns it
@@ -95,7 +95,7 @@ const Login = () => {
 
     setLoading(true)
     try {
-      // ✅ Call auth-service verify
+      // Call auth-service verify
       const res = await authAPI.verifyOTP(phoneNumber, otpValue)
 
       const token = res?.data?.token
@@ -106,11 +106,11 @@ const Login = () => {
         return
       }
 
-      // Normalize user shape for your store (you can adjust fields as you like)
+      // Normalize user shape for store 
       const normalizedUser = {
-        id: user.phoneNumber, // backend doesn’t return id, so phone is a stable key
+        id: user.phoneNumber, //  phone is a stable key for start
         phoneNumber: user.phoneNumber,
-        fullName: user.fullName || 'User',
+        fullName: user.full_name || 'User',
         email: user.email || '',
         isNewUser: !!user.isNewUser,
         createdAt: user.createdAt,

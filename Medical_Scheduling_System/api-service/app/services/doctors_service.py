@@ -2,9 +2,10 @@ from datetime import datetime, timedelta, time as dt_time
 from typing import Dict, Any, List
 from zoneinfo import ZoneInfo
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 import logging
 
-from app.services.doctors_repository import DoctorRepository
+from app.repository.doctors_repository import DoctorRepository
 from app.services.appointment_rules import (
     day_of_week_sun0,
     ensure_tz,
@@ -13,22 +14,21 @@ from app.services.appointment_rules import (
 
 logger = logging.getLogger(__name__)
 
-
 class DoctorService:
     """Business logic layer for doctors"""
 
     def __init__(self):
         self.repo = DoctorRepository()
 
-    def get_doctor_with_details(self, cursor, doctor_id: int) -> Dict[str, Any]:
+    def get_doctor_with_details(self, db: Session, doctor_id: int) -> Dict[str, Any]:
         """Get doctor with working hours"""
-        doctor = self.repo.get_doctor_by_id(cursor, doctor_id)
+        doctor = self.repo.get_doctor_by_id(db, doctor_id)
         if not doctor:
             raise HTTPException(
                 status_code=404, detail=f"Doctor with ID {doctor_id} not found"
             )
 
-        working_hours = self.repo.get_doctor_working_hours(cursor, doctor_id)
+        working_hours = self.repo.get_doctor_working_hours(db, doctor_id)
         doctor["working_hours"] = working_hours
         return doctor
 
@@ -42,10 +42,10 @@ class DoctorService:
             )
 
     def validate_doctor_availability(
-        self, cursor, doctor_id: int
+        self, db: Session, doctor_id: int
     ) -> Dict[str, Any]:
         """Check if doctor exists and is available"""
-        doctor = self.repo.get_doctor_basic_info(cursor, doctor_id)
+        doctor = self.repo.get_doctor_basic_info(db, doctor_id)
         if not doctor:
             raise HTTPException(
                 status_code=404, detail=f"Doctor {doctor_id} not found"
@@ -63,7 +63,7 @@ class DoctorService:
             )
 
     def get_working_hours_for_date(
-        self, cursor, doctor_id: int, target_date: datetime, doctor_tz: ZoneInfo
+        self, db: Session, doctor_id: int, target_date: datetime, doctor_tz: ZoneInfo
     ) -> Dict[str, Any]:
         """Get working hours for the specific date"""
         local_day_dt = datetime.combine(
@@ -72,7 +72,7 @@ class DoctorService:
         day_of_week = day_of_week_sun0(local_day_dt)
 
         working_hours = self.repo.get_working_hours_for_day(
-            cursor, doctor_id, day_of_week
+            db, doctor_id, day_of_week
         )
         if not working_hours:
             return None
@@ -86,10 +86,10 @@ class DoctorService:
         }
 
     def get_existing_appointments_as_intervals(
-        self, cursor, doctor_id: int
+        self, db: Session, doctor_id: int
     ) -> List[tuple]:
         """Get all existing appointments as UTC time intervals"""
-        appointments = self.repo.get_doctor_appointments(cursor, doctor_id)
+        appointments = self.repo.get_doctor_appointments(db, doctor_id)
 
         intervals = []
         for appt in appointments:
@@ -150,14 +150,14 @@ class DoctorService:
         return available_slots
 
     def get_available_slots(
-        self, cursor, doctor_id: int, date_str: str
+        self, db: Session, doctor_id: int, date_str: str
     ) -> Dict[str, Any]:
         """Get available slots for a doctor on a specific date"""
         # Validate date format
         target_date = self.validate_date_format(date_str)
 
         # Validate doctor
-        doctor = self.validate_doctor_availability(cursor, doctor_id)
+        doctor = self.validate_doctor_availability(db, doctor_id)
         if not doctor["is_available"]:
             return {
                 "doctor_id": doctor_id,
@@ -173,7 +173,7 @@ class DoctorService:
 
         # Get working hours for this date
         working_hours = self.get_working_hours_for_date(
-            cursor, doctor_id, target_date, doctor_tz
+            db, doctor_id, target_date, doctor_tz
         )
         if not working_hours:
             return {
@@ -184,7 +184,7 @@ class DoctorService:
 
         # Get existing appointments
         existing_intervals = self.get_existing_appointments_as_intervals(
-            cursor, doctor_id
+            db, doctor_id
         )
 
         # Generate available slots

@@ -153,6 +153,3 @@ export const storage = {
     }
   },
 }
-
-// Delay utility for async operations
-export const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
