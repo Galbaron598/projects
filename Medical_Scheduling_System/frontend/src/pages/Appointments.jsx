@@ -63,7 +63,7 @@ export default function Appointments() {
   const token = useAuthStore((s) => s.token)
   const patientIdFromStore = useAuthStore((s) => s.patientId)
 
-  // ✅ ensure patient exists + store patientId (prevents double create in StrictMode)
+  // ensure patient exists + store patientId (prevents double create in StrictMode)
   const { ensurePatientId } = useEnsurePatientInStore()
 
   const [activeTab, setActiveTab] = useState('upcoming')
@@ -245,7 +245,7 @@ export default function Appointments() {
         reason_for_visit: selectedAppointment.reasonForVisit ?? null,
       })
 
-      // 2) cancel old appointment (use cancel wrapper, not delete)
+      // 2) cancel old appointment (use cancel api)
       await appointmentsAPI.cancel(selectedAppointment.id, 'rescheduled')
 
       antMessage.success('Appointment rescheduled successfully')

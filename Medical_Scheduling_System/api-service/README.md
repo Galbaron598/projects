@@ -118,9 +118,9 @@ GRANT ALL PRIVILEGES ON DATABASE medical_scheduling TO med_user;
 ```bash
 # Navigate to api-service directory
 cd api-service
-
-# Run SQL schema file
-psql -U postgres -d medical_scheduling -f schema.sql
+createdb medical_scheduling
+psql -d medical_scheduling -f database/schema.sql # Run SQL schema file
+psql -d medical_scheduling -f database/seed_data.sql
 
 # Or if using migrations:
 alembic upgrade head
@@ -138,11 +138,10 @@ psql -U postgres -d medical_scheduling
 # Should see:
 # - medical_fields
 # - doctors
+# - doctor_working_hours
 # - patients
 # - appointments
 
-# Exit
-\q
 ```
 
 ### Step 4: Seed Sample Data (Optional)
@@ -379,8 +378,6 @@ Once the service is running, access:
 ```bash
 GET  /api/medical-fields              # List all medical specialties
 GET  /api/medical-fields/{id}         # Get specialty details
-GET  /api/medical-fields/{id}/doctors-count  # Count doctors in specialty
-
 GET  /api/doctors                     # List all doctors
 GET  /api/doctors?medical_field_id=1  # Filter by specialty
 GET  /api/doctors?search=cardio       # Search doctors

@@ -69,7 +69,7 @@ class DoctorRepository:
 
         # Order and paginate
         stmt = (
-            stmt.order_by(Doctor.rating.desc(), Doctor.total_reviews.desc())
+            stmt.order_by(Doctor.rating.desc().nullslast(), Doctor.total_reviews.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -103,10 +103,10 @@ class DoctorRepository:
             "medical_field_name": medical_field_name,
             "specialization": doctor.specialization,
             "years_of_experience": doctor.years_of_experience,
-            "rating": doctor.rating,
+            "rating": float(doctor.rating) if doctor.rating else None,
             "total_reviews": doctor.total_reviews,
             "bio": doctor.bio,
-            "consultation_fee": doctor.consultation_fee,
+            "consultation_fee": float(doctor.consultation_fee) if doctor.consultation_fee else None,
             "image_url": doctor.image_url,
             "is_available": doctor.is_available,
             "time_zone": doctor.time_zone,
@@ -177,9 +177,18 @@ class DoctorRepository:
 
     @staticmethod
     def get_doctor_appointments(db: Session, doctor_id: int) -> List[Dict[str, Any]]:
-        """Fetch all scheduled/confirmed appointments for a doctor"""
+        """
+        Fetch all scheduled/confirmed appointments for a doctor
+        
+        CRITICAL: This must return appointments to filter out booked slots!
+        """
         stmt = (
-            select(Appointment.appointment_time, Appointment.duration_minutes)
+            select(
+                Appointment.id,
+                Appointment.appointment_time,
+                Appointment.duration_minutes,
+                Appointment.status,
+            )
             .where(
                 and_(
                     Appointment.doctor_id == doctor_id,
@@ -190,4 +199,79 @@ class DoctorRepository:
         )
 
         rows = db.execute(stmt).all()
-        return [_row_to_dict(row) for row in rows]
+        
+        result = [
+            {
+                "id": row.id,
+                "appointment_time": row.appointment_time,
+                "duration_minutes": row.duration_minutes or 30,
+                "status": row.status,
+            }
+            for row in rows
+        ]
+        
+        # Debug logging
+        logger.info(f"get_doctor_appointments for doctor {doctor_id}: found {len(result)} appointments")
+        if result:
+            logger.debug(f"First appointment: {result[0]}")
+        
+        return result
+
+    @staticmethod
+    def get_patient_appointments(
+        db: Session, 
+        patient_id: int,
+        start_date: Optional[Any] = None,
+        end_date: Optional[Any] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch patient's appointments (for checking conflicts)
+        
+        Args:
+            patient_id: Patient ID
+            start_date: Optional start datetime filter
+            end_date: Optional end datetime filter
+            
+        Returns:
+            List of patient's appointments
+        """
+        stmt = (
+            select(
+                Appointment.id,
+                Appointment.doctor_id,
+                Appointment.appointment_time,
+                Appointment.duration_minutes,
+                Appointment.status,
+            )
+            .where(
+                and_(
+                    Appointment.patient_id == patient_id,
+                    Appointment.status.in_(["scheduled", "confirmed"]),
+                )
+            )
+        )
+        
+        # Add date filters if provided
+        if start_date:
+            stmt = stmt.where(Appointment.appointment_time >= start_date)
+        if end_date:
+            stmt = stmt.where(Appointment.appointment_time < end_date)
+        
+        stmt = stmt.order_by(Appointment.appointment_time.asc())
+        
+        rows = db.execute(stmt).all()
+        
+        result = [
+            {
+                "id": row.id,
+                "doctor_id": row.doctor_id,
+                "appointment_time": row.appointment_time,
+                "duration_minutes": row.duration_minutes or 30,
+                "status": row.status,
+            }
+            for row in rows
+        ]
+        
+        logger.info(f"get_patient_appointments for patient {patient_id}: found {len(result)} appointments")
+        
+        return result

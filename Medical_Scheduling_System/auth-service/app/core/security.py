@@ -5,7 +5,6 @@ from app.core.config import JWT_SECRET, user_sessions
 
 security = HTTPBearer()
 
-
 def decode_token(token: str) -> str:
     """Decode JWT token and return phone number"""
     try:

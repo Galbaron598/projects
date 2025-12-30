@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from decimal import Decimal
 from datetime import datetime, time
 
 class DoctorBase(BaseModel):
@@ -9,23 +8,23 @@ class DoctorBase(BaseModel):
     specialization: Optional[str] = None
     years_of_experience: Optional[int] = None
     bio: Optional[str] = None
-    consultation_fee: Optional[Decimal] = None
+    consultation_fee: Optional[float] = None
 
 class DoctorResponse(BaseModel):
     id: int
     name: str
     medical_field_id: int
     medical_field_name: Optional[str] = None
-    specialization: Optional[str]
-    years_of_experience: Optional[int]
-    rating: Optional[Decimal]
-    total_reviews: Optional[int]
-    bio: Optional[str]
-    consultation_fee: Optional[Decimal]
-    image_url: Optional[str]
-    is_available: bool
-    time_zone: str
-    created_at: datetime
+    specialization: Optional[str] = None
+    years_of_experience: Optional[int] = None
+    rating: Optional[float] = None
+    total_reviews: Optional[int] = None
+    bio: Optional[str] = None
+    consultation_fee: Optional[float] = None
+    image_url: Optional[str] = None
+    is_available: bool = True
+    time_zone: str = "Asia/Jerusalem"
+    created_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
@@ -42,3 +41,6 @@ class WorkingHoursResponse(BaseModel):
     end_time: time
     slot_duration_minutes: int
     is_active: bool
+    
+    class Config:
+        from_attributes = True

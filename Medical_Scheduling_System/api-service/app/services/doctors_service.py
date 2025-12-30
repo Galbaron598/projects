@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, time as dt_time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -88,8 +88,39 @@ class DoctorService:
     def get_existing_appointments_as_intervals(
         self, db: Session, doctor_id: int
     ) -> List[tuple]:
-        """Get all existing appointments as UTC time intervals"""
+        """
+        Get all existing appointments as UTC time intervals
+        This includes ALL patients' appointments (doctor's full schedule)
+        """
         appointments = self.repo.get_doctor_appointments(db, doctor_id)
+
+        intervals = []
+        for appt in appointments:
+            start_utc = ensure_tz(appt["appointment_time"])
+            end_utc = start_utc + timedelta(
+                minutes=int(appt["duration_minutes"] or 30)
+            )
+            intervals.append((start_utc, end_utc))
+
+        return intervals
+
+    def get_patient_conflicts_as_intervals(
+        self, db: Session, patient_id: int, target_date: datetime
+    ) -> List[tuple]:
+        """
+        Get patient's appointments on target date as UTC intervals
+        This is for checking if the patient is double-booking themselves
+        """
+        if not patient_id:
+            return []
+        
+        # Get start and end of the target date
+        start_of_day = datetime.combine(target_date, dt_time(0, 0), tzinfo=ZoneInfo("UTC"))
+        end_of_day = datetime.combine(target_date, dt_time(23, 59, 59), tzinfo=ZoneInfo("UTC"))
+        
+        appointments = self.repo.get_patient_appointments(
+            db, patient_id, start_of_day, end_of_day
+        )
 
         intervals = []
         for appt in appointments:
@@ -106,9 +137,22 @@ class DoctorService:
         target_date: datetime,
         working_hours: Dict[str, Any],
         existing_intervals: List[tuple],
+        patient_conflict_intervals: List[tuple],
         doctor_tz: ZoneInfo,
     ) -> List[Dict[str, Any]]:
-        """Generate available time slots"""
+        """
+        Generate available time slots
+        
+        Args:
+            target_date: Date to generate slots for
+            working_hours: Doctor's working hours
+            existing_intervals: Doctor's booked appointments (all patients)
+            patient_conflict_intervals: Patient's own appointments (for conflict detection)
+            doctor_tz: Doctor's timezone
+            
+        Returns:
+            List of available slots with conflict warnings
+        """
         start_time = working_hours["start_time"]
         end_time = working_hours["end_time"]
         slot_minutes = working_hours["slot_duration_minutes"]
@@ -130,29 +174,55 @@ class DoctorService:
                     current_local + timedelta(minutes=slot_minutes)
                 ).astimezone(ZoneInfo("UTC"))
 
-                # Check for conflicts
-                is_conflict = any(
+                # Check if doctor is busy (any patient)
+                doctor_busy = any(
                     intervals_overlap(es, ee, slot_start_utc, slot_end_utc)
                     for (es, ee) in existing_intervals
                 )
 
-                if not is_conflict:
-                    available_slots.append(
-                        {
-                            "start_time": slot_start_utc.isoformat(),
-                            "end_time": slot_end_utc.isoformat(),
-                            "available": True,
-                        }
-                    )
+                # Check if patient has conflict (other appointments)
+                patient_conflict = any(
+                    intervals_overlap(ps, pe, slot_start_utc, slot_end_utc)
+                    for (ps, pe) in patient_conflict_intervals
+                )
+
+                # Slot is available if doctor is free
+                if not doctor_busy:
+                    slot_data = {
+                        "start_time": slot_start_utc.isoformat(),
+                        "end_time": slot_end_utc.isoformat(),
+                        "available": True,
+                    }
+                    
+                    # Warn if patient has conflict (but still show the slot)
+                    if patient_conflict:
+                        slot_data["warning"] = "You have another appointment at this time"
+                    
+                    available_slots.append(slot_data)
 
             current_local += timedelta(minutes=slot_minutes)
 
         return available_slots
 
     def get_available_slots(
-        self, db: Session, doctor_id: int, date_str: str
+        self, 
+        db: Session, 
+        doctor_id: int, 
+        date_str: str,
+        patient_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """Get available slots for a doctor on a specific date"""
+        """
+        Get available slots for a doctor on a specific date
+        
+        Args:
+            db: Database session
+            doctor_id: Doctor ID
+            date_str: Date in YYYY-MM-DD format
+            patient_id: Optional patient ID for conflict detection
+            
+        Returns:
+            Dictionary with available slots
+        """
         # Validate date format
         target_date = self.validate_date_format(date_str)
 
@@ -182,14 +252,25 @@ class DoctorService:
                 "available_slots": [],
             }
 
-        # Get existing appointments
+        # Get existing appointments (all patients - doctor's schedule)
         existing_intervals = self.get_existing_appointments_as_intervals(
             db, doctor_id
         )
+        
+        # Get patient's own appointments (for conflict warnings)
+        patient_conflict_intervals = []
+        if patient_id:
+            patient_conflict_intervals = self.get_patient_conflicts_as_intervals(
+                db, patient_id, target_date
+            )
 
         # Generate available slots
         available_slots = self.generate_available_slots(
-            target_date, working_hours, existing_intervals, doctor_tz
+            target_date, 
+            working_hours, 
+            existing_intervals,
+            patient_conflict_intervals,
+            doctor_tz
         )
 
         return {

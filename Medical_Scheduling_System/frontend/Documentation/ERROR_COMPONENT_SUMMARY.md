@@ -416,18 +416,3 @@ try {
    }
    ```
 
-That's it! The component handles everything else automatically! 🎉
-
----
-
-## 💡 Best Practices
-
-1. ✅ **Always pass the error object**: `setError(err)`
-2. ✅ **Provide retry functionality**: `onRetry={fetchData}`
-3. ✅ **Show debug info in dev only**: `showTechnicalDetails={import.meta.env.DEV}`
-4. ✅ **Let component auto-detect error type**: Don't manually set type unless needed
-5. ✅ **Use consistent error structure** in your backend API
-
----
-
-**Your Error component is now production-ready with full server error support!** 🎯

@@ -122,12 +122,7 @@ async def verify_otp(request: VerifyOTPRequest):
 
 @router.post("/logout", response_model=MessageResponse, status_code=status.HTTP_200_OK)
 async def logout(current_user: str = Depends(get_current_user)):
-    """
-    Logout user
-    
-    In a stateless JWT system, logout is typically handled client-side
-    by deleting the token. This endpoint is optional.
-    """
+
     print(f"👋 User {current_user} logged out")
     
     return MessageResponse(message="Logged out successfully")
