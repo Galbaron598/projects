@@ -33,18 +33,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_db() -> Generator[Session, None, None]:
-    """
-    Dependency for FastAPI routes to get database session
-    
-    This replaces your old get_db() that returned a connection.
-    Now it returns a SQLAlchemy Session.
-    
-    Usage:
-        @router.get("/")
-        async def endpoint(db: Session = Depends(get_db)):
-            repo = AppointmentRepository()
-            return repo.get_appointments(db, patient_id=1)
-    """
     db = SessionLocal()
     try:
         yield db
@@ -61,11 +49,6 @@ def get_db() -> Generator[Session, None, None]:
 def get_db_context():
     """
     Context manager for database session (non-FastAPI usage)
-    
-    Usage:
-        with get_db_context() as db:
-            repo = AppointmentRepository()
-            appointments = repo.get_appointments(db, patient_id=1)
     """
     db = SessionLocal()
     try:
@@ -80,21 +63,13 @@ def get_db_context():
 
 
 def init_db():
-    """
-    Initialize database tables
-    Run this once to create all tables from your models
-    """
     Base.metadata.create_all(bind=engine)
-    logger.info("✅ Database tables created successfully!")
+    logger.info("Database tables created successfully!")
 
 
 def drop_db():
-    """
-    Drop all database tables
-    WARNING: Use with caution! This deletes all data.
-    """
     Base.metadata.drop_all(bind=engine)
-    logger.info("⚠️  Database tables dropped!")
+    logger.info("Database tables dropped!")
 
 
 def close_db():

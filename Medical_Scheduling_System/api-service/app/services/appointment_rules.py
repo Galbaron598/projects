@@ -216,19 +216,8 @@ def validate_no_conflicts(
     
     return True  # No conflict
 
-
+# Get start and end datetime for a given date in a timezone (Handle both date and datetime objects)
 def get_day_boundaries(date, tz: ZoneInfo) -> tuple:
-    """
-    Get start and end datetime for a given date in a timezone
-    
-    Args:
-        date: Date to get boundaries for (date or datetime)
-        tz: Timezone
-        
-    Returns:
-        Tuple of (start_of_day, end_of_day) in UTC
-    """
-    # Handle both date and datetime objects
     if isinstance(date, datetime):
         date = date.date()
     

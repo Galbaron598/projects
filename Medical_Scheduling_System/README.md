@@ -4,19 +4,44 @@ A full-stack medical appointment booking system with OTP authentication, doctor 
 
 ## 🏗️ Architecture
 
+### Service Communication Flow
+
 ```
-┌──────────────┐       ┌──────────────┐       ┌──────────────┐
-│   Frontend   │       │ Auth Service │       │ API Service  │
-│   (React)    │◄─────►│  Port 8000   │◄─────►│  Port 8001   │
-│   Port 3000  │       │              │       │              │
-└──────────────┘       └──────┬───────┘       └──────┬───────┘
-                              │                      │
-                              └──────────┬───────────┘
-                                         │
-                                  ┌──────▼──────┐
-                                  │  PostgreSQL │
-                                  │   Database  │
-                                  └─────────────┘
+┌──────────────┐
+│   Frontend   │  1. User logs in
+│ (Port 5173)  │
+└──────┬───────┘
+       │
+       │ 2. Request OTP / Verify OTP
+       ▼
+┌──────────────────┐
+│  Auth Service    │  3. Generate JWT token
+│  (Port 8000)     │  4. Return token
+└──────────────────┘
+       │
+       │ Token stored in frontend
+       ▼
+┌──────────────┐
+│   Frontend   │  5. API calls with token
+└──────┬───────┘
+       │
+       │ Authorization: Bearer <token>
+       ▼
+┌──────────────────────┐
+│   API Service        │  6. Validate token with Auth Service
+│   (Port 8001)        │  7. Process request
+│                      │  8. Query PostgreSQL
+│  ┌────────────────┐  │
+│  │   PostgreSQL   │  │  ← Persistent storage
+│  │   (Port 5432)  │  │
+│  └────────────────┘  │
+└──────────────────────┘
+       │
+       │ 9. Return data
+       ▼
+┌──────────────┐
+│   Frontend   │  10. Display to user
+└──────────────┘
 ```
 
 ## 🚀 Features
@@ -49,6 +74,26 @@ A full-stack medical appointment booking system with OTP authentication, doctor 
 - **Uvicorn** ASGI server
 - **Connection pooling** for scalability
 
+## 🌐 Service Ports
+
+| Service | Port | URL |
+|---------|------|-----|
+| **Auth Service** | 8000 | http://localhost:8000 |
+| **API Service** | 8001 | http://localhost:8001 |
+| **Frontend** | 3000 | http://localhost:3000 |
+
+### Why Different Ports?
+
+- **Port 8000** (Auth): Handles authentication only
+- **Port 8001** (API): Handles appointments, doctors, patients
+- **Port 3000** (Frontend): React development server
+
+This **microservices architecture** allows:
+- ✅ Independent scaling
+- ✅ Separate deployments
+- ✅ Service isolation
+- ✅ Better security (auth is isolated)
+
 ## 📋 Prerequisites
 
 - Python 3.10 or higher
@@ -56,7 +101,33 @@ A full-stack medical appointment booking system with OTP authentication, doctor 
 - Node.js 18+ and npm (for frontend)
 - Git
 
-## 🚀 Quick Start (All Services)
+## 🚀 Quick Start (All Services) with Docker
+
+### Prerequisites
+- Docker 20.10+
+- Docker Compose 2.0+
+
+### One-Command Deploy
+
+```bash
+# Clone and start all services
+git clone <your-repo-url>
+cd medical-scheduling-system
+docker-compose up -d
+```
+
+**That's it!** All services are now running:
+- 🌐 Frontend: http://localhost:3000
+- 🔐 Auth API: http://localhost:8000/docs
+- 🏥 Medical API: http://localhost:8001/docs
+- 💾 PostgreSQL: localhost:5432
+
+### Stop Services
+
+```bash
+docker-compose down          # Stop services
+docker-compose down -v       # Stop and remove data
+```
 
 ### 1. Clone Repository
 ```bash
@@ -89,7 +160,7 @@ cp .env.example .env
 # Edit .env with your database credentials !!! delete this line!!
 python main.py
 ```
-✅ Auth service running on http://localhost:8000
+Auth service running on http://localhost:8000
 
 ### 4. Setup API Service
 ```bash
@@ -101,7 +172,7 @@ cp .env.example .env
 # Edit .env with your database credentials !!!!delete this!! 
 python main.py
 ```
-✅ API service running on http://localhost:8001
+API service running on http://localhost:8001
 
 ### 5. Setup Frontend (Optional)
 ```bash
@@ -110,7 +181,7 @@ npm install
 cp .env.example .env
 npm start
 ```
-✅ Frontend running on http://localhost:3000
+Frontend running on http://localhost:3000
 
 ## 📚 Documentation
 
@@ -237,34 +308,6 @@ The system is designed to scale:
 - 10,000+ concurrent users
 - ~2,000 requests/second
 - <50ms response time
-
-## 🚀 Quick Start with Docker
-
-### Prerequisites
-- Docker 20.10+
-- Docker Compose 2.0+
-
-### One-Command Deploy
-
-```bash
-# Clone and start all services
-git clone <your-repo-url>
-cd medical-scheduling-system
-docker-compose up -d
-```
-
-**That's it!** All services are now running:
-- 🌐 Frontend: http://localhost:3000
-- 🔐 Auth API: http://localhost:8000/docs
-- 🏥 Medical API: http://localhost:8001/docs
-- 💾 PostgreSQL: localhost:5432
-
-### Stop Services
-
-```bash
-docker-compose down          # Stop services
-docker-compose down -v       # Stop and remove data
-```
 
 ## 💻 Local Development Setup
 

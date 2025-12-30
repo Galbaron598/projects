@@ -31,8 +31,6 @@ def _appointment_row_to_dict(
         if medical_field
         else None,
     }
-
-
 class AppointmentRepository:
     """Data access layer for appointments (SQLAlchemy ORM)."""
 

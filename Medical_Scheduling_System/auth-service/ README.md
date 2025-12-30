@@ -99,13 +99,13 @@ pip install -r requirements.txt
 # Check installed packages
 pip list
 
-# Should see:
-# fastapi
-# uvicorn
-# pydantic
-# PyJWT
-# python-jose
-# passlib
+Should see:
+fastapi
+uvicorn
+pydantic
+PyJWT
+python-jose
+passlib
 ```
 
 ---
@@ -138,16 +138,6 @@ INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 ```
 
-### Production Mode
-
-```bash
-# Production server (no auto-reload)
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-
-# With access log
-uvicorn main:app --host 0.0.0.0 --port 8000 --access-log
-```
-
 ### Using Python Script
 
 ```bash
@@ -158,54 +148,6 @@ python main.py
 python -m uvicorn main:app --reload
 ```
 
----
-
-## 🌐 Service Ports
-
-| Service | Port | URL |
-|---------|------|-----|
-| **Auth Service** | 8000 | http://localhost:8000 |
-| **API Service** | 8001 | http://localhost:8001 |
-| **Frontend** | 3000 | http://localhost:3000 |
-
-### Why Different Ports?
-
-- **Port 8000** (Auth): Handles authentication only
-- **Port 8001** (API): Handles appointments, doctors, patients
-- **Port 3000** (Frontend): React development server
-
-This **microservices architecture** allows:
-- ✅ Independent scaling
-- ✅ Separate deployments
-- ✅ Service isolation
-- ✅ Better security (auth is isolated)
-
----
-
-## 📚 API Documentation
-
-### API Endpoints
-
-#### 1. Request OTP
-
-```http
-POST /api/auth/request-otp
-Content-Type: application/json
-
-{
-  "phoneNumber": "0501234567"
-}
-```
-
-**Response** (200 OK):
-```json
-{
-  "message": "OTP sent successfully",
-  "debug": {
-    "otp": "123456",
-    "expiresIn": "5 minutes"
-  }
-}
 ```
 
 **Note**: In production, the OTP would be sent via SMS. For testing, it's displayed in the response and server console.
@@ -370,7 +312,7 @@ The JWT token contains:
 
 ### Production Considerations
 
-**In a production system**, the JWT would typically include:
+In a production system, the JWT would typically include:
 
 ```json
 {
@@ -435,27 +377,6 @@ user_sessions = {
 - ❌ Single-instance only (can't scale horizontally)
 - ❌ No historical data
 
-### Production Migration
-
-To add database support:
-
-```python
-# Replace in-memory dict with database
-# Before:
-otp_store[phone] = {"otp": otp, ...}
-
-# After:
-await db.execute(
-    "INSERT INTO otps (phone_number, otp, expires_at) VALUES ($1, $2, $3)",
-    phone, otp, expires_at
-)
-```
-
-**Recommended databases:**
-- **Redis**: For OTP storage (TTL support)
-- **PostgreSQL**: For user sessions (relational data)
-- **MongoDB**: For flexible user profiles
-
 ---
 
 ## 🔧 Configuration
@@ -485,24 +406,6 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 # Environment
 ENVIRONMENT=development
 DEBUG=true
-```
-
-### Loading Environment Variables
-
-```python
-# app/core/config.py
-from pydantic_settings import BaseSettings
-
-class Settings(BaseSettings):
-    JWT_SECRET_KEY: str = "dev-secret-key"
-    JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRATION_MINUTES: int = 1440
-    OTP_EXPIRY_MINUTES: int = 5
-    
-    class Config:
-        env_file = ".env"
-
-settings = Settings()
 ```
 
 ---
@@ -575,118 +478,9 @@ print(response.json())
 
 ---
 
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Port Already in Use
-
-```bash
-# Error: Address already in use
-# Solution: Kill process on port 8000
-
-# On macOS/Linux:
-lsof -ti:8000 | xargs kill -9
-
-# On Windows:
-netstat -ano | findstr :8000
-taskkill /PID <PID> /F
-
-# Or use different port:
-uvicorn main:app --reload --port 8001
-```
-
-#### Module Not Found
-
-```bash
-# Error: ModuleNotFoundError: No module named 'fastapi'
-# Solution: Ensure virtual environment is activated and dependencies installed
-
-source venv/bin/activate  # Activate venv
-pip install -r requirements.txt  # Install dependencies
-```
-
-#### CORS Errors
-
-```bash
-# Error: Access to fetch at 'http://localhost:8000' from origin 'http://localhost:5173' 
-# has been blocked by CORS policy
-
-# Solution: Check CORS configuration in main.py
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Add your frontend URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-#### JWT Token Invalid
-
-```bash
-# Error: Could not validate credentials
-# Solution: 
-1. Check JWT_SECRET_KEY in config
-2. Ensure token is sent in Authorization header: "Bearer <token>"
-3. Check token hasn't expired
-4. Verify token format is correct
-```
 
 ---
 
-## 📊 Service Flow Diagram
-
-```
-┌─────────────┐
-│   Frontend  │
-│ (Port 5173) │
-└──────┬──────┘
-       │
-       │ 1. Request OTP
-       ▼
-┌─────────────────┐
-│  Auth Service   │
-│  (Port 8000)    │
-│                 │
-│ ┌─────────────┐ │
-│ │ OTP Store   │ │  ← In-Memory
-│ │ (Dict)      │ │
-│ └─────────────┘ │
-│                 │
-│ ┌─────────────┐ │
-│ │   User      │ │  ← In-Memory
-│ │  Sessions   │ │
-│ └─────────────┘ │
-└─────────┬───────┘
-          │
-          │ 2. Return OTP
-          ▼
-    ┌─────────────┐
-    │   Frontend  │  3. User enters OTP
-    └──────┬──────┘
-           │
-           │ 4. Verify OTP
-           ▼
-    ┌─────────────────┐
-    │  Auth Service   │  5. Generate JWT
-    │                 │  6. Return token
-    └─────────┬───────┘
-              │
-              │ Token stored
-              ▼
-       ┌─────────────┐
-       │   Frontend  │
-       │ (localStorage)│
-       └──────┬──────┘
-              │
-              │ 7. API calls with token
-              ▼
-       ┌─────────────────┐
-       │   API Service   │  8. Validate token with Auth Service
-       │   (Port 8001)   │
-       └─────────────────┘
-```
 
 ---
 
@@ -701,40 +495,6 @@ app.add_middleware(
 - ✅ **CORS Configured**: Prevents unauthorized origins
 
 ### Production Hardening
-
-For production deployment, add:
-
-```python
-# Rate Limiting
-from slowapi import Limiter
-limiter = Limiter(key_func=get_remote_address)
-
-@limiter.limit("5/minute")
-@router.post("/request-otp")
-async def request_otp(...):
-    pass
-
-# Secure Headers
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["example.com"])
-
-# HTTPS Only
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-app.add_middleware(HTTPSRedirectMiddleware)
-
-# Input Sanitization
-from pydantic import validator
-
-class RequestOTPRequest(BaseModel):
-    phoneNumber: str
-    
-    @validator('phoneNumber')
-    def validate_phone(cls, v):
-        # Add phone number validation
-        if not v.startswith('05') or len(v) != 10:
-            raise ValueError('Invalid phone number')
-        return v
-```
 
 ---
 
@@ -768,9 +528,6 @@ class RequestOTPRequest(BaseModel):
 
 ---
 
-## 🚀 Deployment
-
-
 ## 👨‍💻 Author
 
 Gal Baron
@@ -782,5 +539,4 @@ For issues or questions:
 1. Check Swagger UI at http://localhost:8000/docs
 2. Review FastAPI docs: https://fastapi.tiangolo.com
 3. Check server console logs
-4. SOS - Gal Baron 0528951007
 

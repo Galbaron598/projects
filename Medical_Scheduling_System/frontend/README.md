@@ -20,6 +20,9 @@ A modern, professional medical appointment booking system built with **React**, 
 - ✅ **TypeScript Ready**: Easy migration to TypeScript if needed
 - ✅ **Mock Data**: Built-in mock data for testing without backend
 
+
+
+
 ## 🛠️ Tech Stack
 
 | Technology | Purpose | Version |
@@ -104,28 +107,6 @@ Ant Design provides:
 | **Button** | Actions |
 | **Input** | Form fields |
 
-### Theme Customization
-
-The app uses a custom Ant Design theme configured in `src/main.jsx`:
-
-```javascript
-const theme = {
-  token: {
-    colorPrimary: '#1890ff',    // Primary blue
-    colorSuccess: '#52c41a',    // Success green
-    colorWarning: '#faad14',    // Warning orange
-    colorError: '#ff4d4f',      // Error red
-    borderRadius: 8,            // Rounded corners
-    fontSize: 14,               // Base font size
-  },
-  components: {
-    Button: {
-      borderRadius: 8,
-      controlHeight: 40,
-    },
-    // ... more customizations
-  },
-}
 ```
 
 ## 📦 State Management (Zustand)
@@ -140,49 +121,7 @@ Zustand is perfect for this project because:
 - ✅ **TypeScript Ready**: Excellent TypeScript support
 - ✅ **DevTools Support**: Redux DevTools compatible
 
-### Store Structure
-
-```javascript
-// src/store/authStore.js
-export const useAuthStore = create(
-  persist(
-    (set, get) => ({
-      // State
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      
-      // Actions
-      login: (userData, token) => set({ 
-        user: userData, 
-        token, 
-        isAuthenticated: true 
-      }),
-      
-      logout: () => set({ 
-        user: null, 
-        token: null, 
-        isAuthenticated: false 
-      }),
-      
-      // ... more actions
-    }),
-    {
-      name: 'auth-storage',  // localStorage key
-    }
-  )
-)
 ```
-
-## 🔐 Authentication Flow
-
-1. **User enters phone number** → Validation
-2. **System generates mock OTP** → Displayed for testing
-3. **User enters OTP** → Verification
-4. **Login successful** → Token stored in Zustand + localStorage
-5. **Protected routes accessible** → Navigate to dashboard
-
-**Note**: Mock OTP is shown in console and UI for testing. Replace with real SMS integration in production.
 
 ## 📱 Pages Overview
 
@@ -211,11 +150,6 @@ Multi-step wizard:
 3. **Pick Date & Time**: Calendar and time slot picker
 4. **Confirm**: Review and submit
 
-Features:
-- Progress indicator
-- Form validation
-- Back/Next navigation
-- Data persistence across steps
 
 ### 4. Appointments (`/appointments`)
 - Tabs: Upcoming & Past
@@ -226,25 +160,7 @@ Features:
 
 ### 5. Profile (`/profile`)
 - Personal information editing
-- Emergency contacts
-- Edit/Save modes
 
-## 🔄 API Integration
-
-The app uses a centralized API service (`src/services/api.js`):
-
-```javascript
-// Example API call
-import { appointmentsAPI } from './services/api'
-
-const fetchAppointments = async () => {
-  try {
-    const response = await appointmentsAPI.getUpcoming()
-    setAppointments(response.data)
-  } catch (error) {
-    message.error('Failed to load appointments')
-  }
-}
 ```
 ### Connecting to Real Backend
 
@@ -266,20 +182,6 @@ import Loading from './components/Loading'
 <Loading tip="Loading appointments..." />
 ```
 
-### Error Component
-
-```javascript
-import Error from './components/Error'
-
-// Display error
-<Error 
-  type="error"
-  title="Something went wrong"
-  message="Failed to load data"
-  onRetry={fetchData}
-/>
-
-// Error types: error, warning, info, notFound, unauthorized
 ```
 
 ## 🚢 Deployment
@@ -328,25 +230,7 @@ Set these in your deployment platform:
 - ✅ XSS protection (React escapes by default)
 - ✅ HTTPS required in production
 
-## 📝 Development Best Practices
 
-### Code Organization
-- Components are modular and reusable
-- Services layer separates API logic
-- Utils contain helper functions
-- State management is centralized
-
-### Performance
-- Optimized re-renders with Zustand selectors
-- Vite for fast builds
-
-### Accessibility
-- Semantic HTML
-- ARIA labels (Ant Design provides)
-- Keyboard navigation
-- Screen reader support
-
-## 🐛 Known Issues & Future Improvements
 
 ### Current Limitations
 - Mock data for demonstration
@@ -365,15 +249,7 @@ This project was created as part of the CORTEX Full-Stack Developer Assignment.
 
 ## 👨‍💻 Author
 
-Created for CORTEX R&D Center recruitment process.
-
-## 🙏 Acknowledgments
-
-- **Ant Design** - For React components
-- **Zustand** - For simple state management
-- **Vite** - For blazing fast build tool
-- **Day.js** - For lightweight date manipulation
-- **React Router** - For routing solution
+Gal Baron 
 
 ---
 

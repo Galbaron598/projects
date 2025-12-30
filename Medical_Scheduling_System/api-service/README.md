@@ -118,7 +118,6 @@ GRANT ALL PRIVILEGES ON DATABASE medical_scheduling TO med_user;
 ```bash
 # Navigate to api-service directory
 cd api-service
-createdb medical_scheduling
 psql -d medical_scheduling -f database/schema.sql # Run SQL schema file
 psql -d medical_scheduling -f database/seed_data.sql
 
@@ -135,12 +134,12 @@ psql -U postgres -d medical_scheduling
 # List tables
 \dt
 
-# Should see:
-# - medical_fields
-# - doctors
-# - doctor_working_hours
-# - patients
-# - appointments
+Should see 5 tables:
+- medical_fields
+- doctors
+- doctor_working_hours
+- patients
+- appointments
 
 ```
 
@@ -170,7 +169,7 @@ cd api-service
 ```bash
 # Create virtual environment
 python -m venv venv
-
+or in mac/linux - python3 -m venv venv
 # Activate virtual environment
 
 # On macOS/Linux:
@@ -251,7 +250,7 @@ settings = get_settings()
 url = f'postgresql://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}'
 engine = create_engine(url)
 conn = engine.connect()
-print('✅ Database connection successful!')
+print('Database connection successful!')
 conn.close()
 "
 ```
@@ -284,19 +283,6 @@ INFO:     Started reloader process [12345] using WatchFiles
 INFO:     Application startup complete.
 ```
 
-### Production Mode
-
-```bash
-# Production server with multiple workers
-uvicorn main:app --host 0.0.0.0 --port 8001 --workers 4
-
-# With access logging
-uvicorn main:app --host 0.0.0.0 --port 8001 --workers 4 --access-log
-
-# Using gunicorn (recommended for production)
-gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001
-```
-
 ---
 
 ## 🌐 Service Architecture
@@ -319,45 +305,7 @@ gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001
 - ✅ **Team Separation**: Different teams can own different services
 - ✅ **Technology Flexibility**: Each service can use different tech
 
-### Service Communication Flow
 
-```
-┌──────────────┐
-│   Frontend   │  1. User logs in
-│ (Port 5173)  │
-└──────┬───────┘
-       │
-       │ 2. Request OTP / Verify OTP
-       ▼
-┌──────────────────┐
-│  Auth Service    │  3. Generate JWT token
-│  (Port 8000)     │  4. Return token
-└──────────────────┘
-       │
-       │ Token stored in frontend
-       ▼
-┌──────────────┐
-│   Frontend   │  5. API calls with token
-└──────┬───────┘
-       │
-       │ Authorization: Bearer <token>
-       ▼
-┌──────────────────────┐
-│   API Service        │  6. Validate token with Auth Service
-│   (Port 8001)        │  7. Process request
-│                      │  8. Query PostgreSQL
-│  ┌────────────────┐  │
-│  │   PostgreSQL   │  │  ← Persistent storage
-│  │   (Port 5432)  │  │
-│  └────────────────┘  │
-└──────────────────────┘
-       │
-       │ 9. Return data
-       ▼
-┌──────────────┐
-│   Frontend   │  10. Display to user
-└──────────────┘
-```
 
 ---
 
@@ -682,79 +630,7 @@ User Request: Book appointment at 10:00 AM
 Success! Appointment created
 ```
 
----
 
-## 📊 Database Schema
-
-### Core Tables
-
-#### medical_fields
-```sql
-CREATE TABLE medical_fields (
-    id SERIAL PRIMARY KEY,
-    medical_field_name VARCHAR(255) UNIQUE NOT NULL,
-    description TEXT,
-    icon VARCHAR(255),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### doctors
-```sql
-CREATE TABLE doctors (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    medical_field_id INTEGER REFERENCES medical_fields(id),
-    specialization VARCHAR(255),
-    years_of_experience INTEGER,
-    rating NUMERIC(2,1),
-    total_reviews INTEGER DEFAULT 0,
-    bio TEXT,
-    consultation_fee NUMERIC(10,2),
-    image_url VARCHAR(1024),
-    is_available BOOLEAN DEFAULT TRUE,
-    time_zone VARCHAR(64) DEFAULT 'UTC',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### appointments
-```sql
-CREATE TABLE appointments (
-    id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL,
-    doctor_id INTEGER REFERENCES doctors(id),
-    medical_field_id INTEGER REFERENCES medical_fields(id),
-    appointment_time TIMESTAMPTZ NOT NULL,
-    duration_minutes INTEGER DEFAULT 30,
-    status VARCHAR(32) DEFAULT 'scheduled',
-    reason_for_visit TEXT,
-    notes TEXT,
-    cancelled_at TIMESTAMPTZ,
-    cancellation_reason TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    CONSTRAINT unique_doctor_time UNIQUE (doctor_id, appointment_time)
-);
-```
-
-#### patients
-```sql
-CREATE TABLE patients (
-    id SERIAL PRIMARY KEY,
-    phone_number VARCHAR(20) UNIQUE NOT NULL,
-    full_name VARCHAR(255),
-    email VARCHAR(255) UNIQUE,
-    date_of_birth DATE,
-    gender VARCHAR(10),
-    time_zone VARCHAR(50) DEFAULT 'Asia/Jerusalem',
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
 ---
 
 ## 🏗️ Code Architecture
@@ -971,45 +847,7 @@ pg_dump medical_scheduling > backup.sql
 
 # Restore database
 psql medical_scheduling < backup.sql
-```
-
-### Service Management
-
-```bash
-# Start service
-python main.py
-
-# Start with different port
-uvicorn main:app --reload --port 8002
-
-# Start with debug logging
-uvicorn main:app --reload --log-level debug
-
-# Check if running
-curl http://localhost:8001/
-curl http://localhost:8001/docs
-
-# View logs (if using systemd)
-journalctl -u api-service -f
-```
-
-### Code Quality
-
-```bash
-# Format code
-black app/
-
-# Lint code
-pylint app/
-
-# Type checking
-mypy app/
-
-# Sort imports
-isort app/
-```
-
----
+``
 
 ## 📝 Development Notes
 

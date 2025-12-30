@@ -17,6 +17,3 @@ class MedicalField(Base):
     is_active = Column(Boolean, nullable=False, server_default="true")
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-
-    # Optional relationship
-    doctors = relationship("Doctor", back_populates="medical_field", lazy="selectin")

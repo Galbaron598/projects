@@ -82,10 +82,10 @@ async def get_available_slots(
     """
     Get available time slots for a doctor on a specific date.
     Returns only free slots (no overlaps) in ISO format (UTC).
-    
-    If patient_id is provided, slots will include warnings if the patient
+    slots will include warnings if the patient
     has conflicting appointments with other doctors.
     
+   
     Example response:
     {
         "doctor_id": 1,
