@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      
+      {
+        "name": "Attach API Service (8001)",
+        "type": "debugpy",
+        "request": "attach",
+        "connect": {
+          "host": "localhost",
+          "port": 5678
+        },
+        "justMyCode": true
+      },
+      {
+        "name": "Attach Auth Service (8000)",
+        "type": "debugpy",
+        "request": "attach",
+        "connect": {
+          "host": "localhost",
+          "port": 5679
+        },
+        "justMyCode": true
+      }
+    ]
+  }
+  

@@ -2,6 +2,23 @@
 
 A full-stack medical appointment booking system with OTP authentication, doctor management, and real-time availability checking.
 
+## 🏗️ Architecture
+
+```
+┌──────────────┐       ┌──────────────┐       ┌──────────────┐
+│   Frontend   │       │ Auth Service │       │ API Service  │
+│   (React)    │◄─────►│  Port 8000   │◄─────►│  Port 8001   │
+│   Port 3000  │       │              │       │              │
+└──────────────┘       └──────┬───────┘       └──────┬───────┘
+                              │                      │
+                              └──────────┬───────────┘
+                                         │
+                                  ┌──────▼──────┐
+                                  │  PostgreSQL │
+                                  │   Database  │
+                                  └─────────────┘
+```
+
 ## 🚀 Features
 
 - **OTP Authentication** - Secure phone number-based login
@@ -41,27 +58,11 @@ A full-stack medical appointment booking system with OTP authentication, doctor 
 
 ## 🚀 Quick Start (All Services)
 
-### 1. quick start with Docker
-
-### Prerequisites
-- Docker 20.10+
-- Docker Compose 2.0+
-
-### One-Command Deploy
-
+### 1. Clone Repository
 ```bash
-# Clone and start all services
 git clone <your-repo-url>
 cd medical-scheduling-system
-docker-compose up -d
 ```
-
-**That's it!** All services are now running:
-- 🌐 Frontend: http://localhost:3000
-- 🔐 Auth API: http://localhost:8000/docs
-- 🏥 Medical API: http://localhost:8001/docs
-- 💾 PostgreSQL: localhost:5432
-
 
 ### 2. Setup Database
 ```bash
@@ -236,6 +237,27 @@ The system is designed to scale:
 - 10,000+ concurrent users
 - ~2,000 requests/second
 - <50ms response time
+
+## 🚀 Quick Start with Docker
+
+### Prerequisites
+- Docker 20.10+
+- Docker Compose 2.0+
+
+### One-Command Deploy
+
+```bash
+# Clone and start all services
+git clone <your-repo-url>
+cd medical-scheduling-system
+docker-compose up -d
+```
+
+**That's it!** All services are now running:
+- 🌐 Frontend: http://localhost:3000
+- 🔐 Auth API: http://localhost:8000/docs
+- 🏥 Medical API: http://localhost:8001/docs
+- 💾 PostgreSQL: localhost:5432
 
 ### Stop Services
 
