@@ -29,7 +29,7 @@ function App() {
           {/* Public Routes */}
           <Route 
             path="/login" 
-            element={isAuthenticated ? <Navigate to="/login" replace /> : <Login />} 
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
           />
           
           {/* Protected Routes */}

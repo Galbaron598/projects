@@ -1,34 +1,18 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
 
-export const useAuthStore = create(
+const useAuthStore = create(
   persist(
     (set) => ({
-      // State
       user: null,
       token: null,
-      isAuthenticated: false,
-      loading: false,
+      isAuthenticated: false,  // ← Start as false
 
-      // Patient info (persisted)
-      patientId: null,
-      phoneNumber: null,
-
-      // Actions
-      setLoading: (loading) => set({ loading }),
-
-      setPatientInfo: ({ patientId, phoneNumber }) =>
+      login: (user, token) => {
         set({
-          patientId,
-          phoneNumber,
-        }),
-
-      login: (userData, authToken) => {
-        set({
-          user: userData,
-          token: authToken,
+          user,
+          token,
           isAuthenticated: true,
-          loading: false,
         })
       },
 
@@ -37,21 +21,27 @@ export const useAuthStore = create(
           user: null,
           token: null,
           isAuthenticated: false,
-          loading: false,
-          patientId: null,
-          phoneNumber: null,
         })
       },
 
       updateUser: (userData) => {
         set((state) => ({
-          user: { ...(state.user || {}), ...userData },
+          user: { ...state.user, ...userData },
         }))
       },
     }),
     {
       name: 'auth-storage',
-      storage: createJSONStorage(() => localStorage),
+      
+      // Check token on rehydration
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Only set authenticated if token actually exists
+          state.isAuthenticated = !!state.token
+        }
+      },
     }
   )
 )
+
+export { useAuthStore }
