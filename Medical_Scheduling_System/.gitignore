@@ -56,4 +56,4 @@ dist/
 tmp/
 temp/
 *.tmp
-*.bak
+*.bak.DS_Store
