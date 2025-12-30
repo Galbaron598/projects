@@ -139,12 +139,6 @@ npm start
      -d '{"phone_number": "0501234567", "otp_code": "123456", "full_name": "Test User"}'
    ```
 
-### Automated Tests (Future)
-```bash
-# Run tests
-pytest auth-service/tests/
-pytest api-service/tests/
-```
 
 ## 📊 API Endpoints
 
@@ -167,36 +161,52 @@ pytest api-service/tests/
 | GET | `/api/patients/me` | Get user profile | Yes |
 
 ## 🏗️ Project Structure
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         PATIENT JOURNEY                              │
+└─────────────────────────────────────────────────────────────────────┘
 
+1️⃣ AUTHENTICATION                2️⃣ DISCOVER                3️⃣ BOOK
+┌──────────────────┐           ┌──────────────────┐       ┌──────────────────┐
+│  Enter Phone     │──────────▶│  Browse          │──────▶│  Select Date     │
+│  Number          │           │  Specialties     │       │  & Time          │
+└────────┬─────────┘           └────────┬─────────┘       └────────┬─────────┘
+         │                              │                          │
+         ▼                              ▼                          ▼
+┌──────────────────┐           ┌──────────────────┐       ┌──────────────────┐
+│  Receive OTP     │           │  Filter Doctors  │       │  Confirm         │
+│  via SMS         │           │  by Rating/Exp   │       │  Appointment     │
+└────────┬─────────┘           └────────┬─────────┘       └────────┬─────────┘
+         │                              │                          │
+         ▼                              ▼                          ▼
+┌──────────────────┐           ┌──────────────────┐       ┌──────────────────┐
+│  Verify OTP      │           │  View Doctor     │       │  Get             │
+│  Get JWT Token   │           │  Profile         │       │  Confirmation    │
+└──────────────────┘           └──────────────────┘       └──────────────────┘
 ```
-medical-scheduling-system/
-├── auth-service/           # Authentication microservice
-│   ├── app/
-│   │   ├── api/routes/     # Auth endpoints
-│   │   ├── core/           # Config, database, security
-│   │   ├── schemas/        # Pydantic models
-│   │   └── services/       # OTP logic
-│   └── main.py
-│
-├── api-service/            # Main API microservice
-│   ├── app/
-│   │   ├── api/routes/     # API endpoints
-│   │   ├── core/           # Config, database
-│   │   ├── middleware/     # Auth middleware
-│   │   ├── schemas/        # Pydantic models
-│   │   └── services/       # Business logic
-│   └── main.py
-│
-├── frontend/               # React frontend
-│   └── src/
-│       ├── components/     # UI components
-│       ├── pages/          # Page components
-│       └── services/       # API clients
-│
-└── database/               # Database files
-    ├── schema.sql          # Complete schema
-    └── seeds/              # Sample data
+
+### 🎯 Key User Flows
+
+#### **Flow 1: New Patient Registration & Booking**
 ```
+Landing Page → Enter Phone → OTP Verification → Browse Specialties 
+→ Select Doctor → Choose Date → Pick Time Slot → Confirm Details 
+→ Appointment Confirmed → Dashboard
+```
+
+#### **Flow 2: Returning Patient - Quick Booking**
+```
+Login (Saved Token) → Dashboard → Book New Appointment → Select Specialty 
+→ Choose Doctor → Select Available Slot → Confirm → Done
+```
+
+#### **Flow 3: Managing Existing Appointments**
+```
+Dashboard → View Upcoming Appointments → [Reschedule/Cancel] 
+→ Select New Time (if reschedule) → Confirm Changes → Updated
+```
+
+---
 
 ## 🔒 Security Features
 
@@ -228,51 +238,120 @@ The system is designed to scale:
 - ~2,000 requests/second
 - <50ms response time
 
-## 🚀 Deployment
+## 🚀 Quick Start with Docker
 
-### Option 1: Railway (Recommended)
+### Prerequisites
+- Docker 20.10+
+- Docker Compose 2.0+
+
+### One-Command Deploy
+
 ```bash
-# Deploy each service separately
-railway up
+# Clone and start all services
+git clone <your-repo-url>
+cd medical-scheduling-system
+docker-compose up -d
 ```
 
-### Option 2: Docker
+**That's it!** All services are now running:
+- 🌐 Frontend: http://localhost:3000
+- 🔐 Auth API: http://localhost:8000/docs
+- 🏥 Medical API: http://localhost:8001/docs
+- 💾 PostgreSQL: localhost:5432
+
+### Stop Services
+
 ```bash
-docker-compose up
+docker-compose down          # Stop services
+docker-compose down -v       # Stop and remove data
 ```
 
-### Option 3: Manual Deployment
-See [Deployment Guide](./docs/DEPLOYMENT.md)
+## 💻 Local Development Setup
 
-## 🤝 Contributing
+<details>
+<summary><b>Click to expand manual setup instructions</b></summary>
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### 1. Database Setup
+```bash
+createdb medical_scheduling
+psql medical_scheduling < database/schema.sql
+psql medical_scheduling < database/seed_data.sql
+```
+
+### 2. Auth Service
+```bash
+cd auth-service
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env with your credentials
+python main.py  # Runs on http://localhost:8000
+```
+
+### 3. API Service
+```bash
+cd api-service
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env with your credentials
+python main.py  # Runs on http://localhost:8001
+```
+
+### 4. Frontend
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm start  # Runs on http://localhost:3000
+```
+
+</details>
+
+## 🎯 Core Features Deep Dive
+
+### 🔐 Smart Authentication System
+
+**OTP Flow:**
+```
+User enters phone → System generates 6-digit OTP → OTP sent (simulated)
+→ User enters OTP → System validates (5-min expiry) → JWT token issued
+→ Token stored in localStorage → Auto-login on return
+```
+
+**Security Features:**
+- ✅ Rate limiting: Max 3 OTP requests per 5 minutes
+- ✅ OTP expiration: 5 minutes
+- ✅ JWT expiration: 24 hours
+- ✅ Bcrypt hashing for sensitive data
+
+### 📅 Intelligent Slot Algorithm
+
+**How It Works:**
+```python
+1. Get doctor's working hours for selected date
+2. Generate all possible time slots (e.g., 9:00 AM - 5:00 PM, 30-min slots)
+3. Filter out slots in the past
+4. Check doctor's existing appointments → Remove booked slots
+5. Check patient's other appointments → Add conflict warnings
+6. Return available slots with timezone conversion (UTC ↔ Local)
+```
+
+**Key Features:**
+- ✅ Timezone-aware (supports global doctors)
+- ✅ Conflict detection (prevents double-booking)
+- ✅ Real-time availability
+- ✅ Patient conflict warnings
+- ✅ Customizable slot durations (15/30/45/60 min)
 
 ## 📝 License
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) file.
-
-## 👥 Team
-
-- **Developer:** [Your Name]
-- **Assignment:** CORTEX R&D Center Full-Stack Challenge
-- **Date:** December 2024
-
-## 📧 Contact
-
-- Email: your.email@example.com
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your Name](https://linkedin.com/in/yourprofile)
-
-## 🙏 Acknowledgments
-
-- CORTEX R&D Center for the assignment
-- FastAPI documentation
-- PostgreSQL community
-- React community
-
 ---
+
+## 👨‍💻 Author
+
+**Gal Baron**  
+Full-Stack Developer | CORTEX R&D Center Challenge

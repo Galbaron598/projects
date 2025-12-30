@@ -14,7 +14,6 @@ psql medical_scheduling < schema.sql
 - `doctors` - Doctor profiles
 - `medical_fields` - Medical specialties
 - `appointments` - Appointment bookings
-- `otp_codes` - OTP verification codes
 - `doctor_working_hours` - Doctor schedules
 
 ## Key Constraints

@@ -30,7 +30,7 @@ async def get_doctors(
     """Get list of doctors with optional filters"""
     try:
         repo = DoctorRepository()
-        return repo.get_doctors(
+        doctors = repo.get_doctors(
             db,
             medical_field_id=medical_field_id,
             min_rating=min_rating,
@@ -38,9 +38,12 @@ async def get_doctors(
             limit=limit,
             offset=offset,
         )
+        
+        logger.info(f"Retrieved {len(doctors)} doctors")
+        return doctors
 
     except Exception as e:
-        logger.error(f"Error fetching doctors: {e}")
+        logger.error(f"Error fetching doctors: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve doctors",
@@ -52,12 +55,15 @@ async def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
     """Get detailed information about a specific doctor"""
     try:
         service = DoctorService()
-        return service.get_doctor_with_details(db, doctor_id)
+        doctor = service.get_doctor_with_details(db, doctor_id)
+        
+        logger.info(f"Retrieved doctor {doctor_id}")
+        return doctor
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching doctor {doctor_id}: {e}")
+        logger.error(f"Error fetching doctor {doctor_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to retrieve doctor information"
         )
@@ -68,20 +74,54 @@ async def get_available_slots(
     doctor_id: int,
     db: Session = Depends(get_db),
     date: str = Query(..., description="Date in YYYY-MM-DD format"),
+    patient_id: Optional[int] = Query(
+        None, 
+        description="Optional patient ID for conflict detection"
+    ),
 ):
     """
     Get available time slots for a doctor on a specific date.
-    Returns only free slots (no overlaps) in ISO format.
+    Returns only free slots (no overlaps) in ISO format (UTC).
+    
+    If patient_id is provided, slots will include warnings if the patient
+    has conflicting appointments with other doctors.
+    
+    Example response:
+    {
+        "doctor_id": 1,
+        "date": "2025-12-31",
+        "available_slots": [
+            {
+                "start_time": "2025-12-31T07:00:00Z",
+                "end_time": "2025-12-31T07:30:00Z",
+                "available": true
+            },
+            {
+                "start_time": "2025-12-31T08:00:00Z",
+                "end_time": "2025-12-31T08:30:00Z",
+                "available": true,
+                "warning": "You have another appointment at this time"
+            }
+        ]
+    }
     """
     try:
         service = DoctorService()
-        return service.get_available_slots(db, doctor_id, date)
+        slots = service.get_available_slots(db, doctor_id, date, patient_id)
+        
+        logger.info(
+            f"Retrieved {len(slots.get('available_slots', []))} slots for "
+            f"doctor {doctor_id} on {date}"
+            + (f" (patient {patient_id})" if patient_id else "")
+        )
+        return slots
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            f"Error fetching available slots for doctor {doctor_id}: {e}"
+            f"Error fetching available slots for doctor {doctor_id} on {date}: {e}",
+            exc_info=True
         )
         raise HTTPException(
             status_code=500, detail="Failed to retrieve available slots"
