@@ -2,23 +2,6 @@
 
 A full-stack medical appointment booking system with OTP authentication, doctor management, and real-time availability checking.
 
-## 🏗️ Architecture
-
-```
-┌──────────────┐       ┌──────────────┐       ┌──────────────┐
-│   Frontend   │       │ Auth Service │       │ API Service  │
-│   (React)    │◄─────►│  Port 8000   │◄─────►│  Port 8001   │
-│   Port 3000  │       │              │       │              │
-└──────────────┘       └──────┬───────┘       └──────┬───────┘
-                              │                      │
-                              └──────────┬───────────┘
-                                         │
-                                  ┌──────▼──────┐
-                                  │  PostgreSQL │
-                                  │   Database  │
-                                  └─────────────┘
-```
-
 ## 🚀 Features
 
 - **OTP Authentication** - Secure phone number-based login
@@ -58,11 +41,6 @@ A full-stack medical appointment booking system with OTP authentication, doctor 
 
 ## 🚀 Quick Start (All Services)
 
-### 1. Clone Repository
-```bash
-git clone <your-repo-url>
-cd medical-scheduling-system
-```
 
 ### 2. Setup Database
 ```bash
