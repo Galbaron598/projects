@@ -1,9 +1,18 @@
-from datetime import datetime
-from decimal import Decimal
-from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, Text, ForeignKey, func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+
 
 class Doctor(Base):
     __tablename__ = "doctors"
@@ -13,10 +22,15 @@ class Doctor(Base):
     name = Column(String(255), nullable=False, index=True)
     specialization = Column(String(255), nullable=True)
 
-    medical_field_id = Column(Integer, ForeignKey("medical_fields.id"), nullable=False, index=True)
+    medical_field_id = Column(
+        Integer,
+        ForeignKey("medical_fields.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
 
     years_of_experience = Column(Integer, nullable=True)
-    rating = Column(Numeric(2, 1), nullable=True) # for example 4.5
+    rating = Column(Numeric(2, 1), nullable=True)  # e.g. 4.5
     total_reviews = Column(Integer, nullable=True)
     bio = Column(Text, nullable=True)
 
@@ -31,7 +45,9 @@ class Doctor(Base):
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
-    # Relationships
-    medical_field = relationship("MedicalField", back_populates="doctors", lazy="joined")
-    appointments = relationship("Appointment", back_populates="doctor", lazy="selectin")
-    working_hours = relationship("DoctorWorkingHours", back_populates="doctor", lazy="selectin")
+
+    medical_field = relationship("MedicalField", back_populates="doctors", lazy="joined",)
+
+    appointments = relationship("Appointment", back_populates="doctor", lazy="selectin",cascade="all, delete-orphan",)
+
+    working_hours = relationship("DoctorWorkingHours", back_populates="doctor", lazy="selectin", cascade="all, delete-orphan",)

@@ -1,4 +1,3 @@
-from datetime import datetime
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import relationship
 
@@ -17,3 +16,5 @@ class MedicalField(Base):
     is_active = Column(Boolean, nullable=False, server_default="true")
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    doctors = relationship("Doctor", back_populates="medical_field", lazy="selectin", foreign_keys="Doctor.medical_field_id",)
