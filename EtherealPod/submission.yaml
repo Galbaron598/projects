@@ -1,0 +1,97 @@
+---
+# submission.yaml - Complete deployment configuration for EtherealPod Controller
+# This file contains all resources needed to deploy the controller
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: etherealpod-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: etherealpod-controller
+  namespace: etherealpod-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: etherealpod-controller
+rules:
+  - apiGroups: ["example.com"]
+    resources: ["etherealpods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["example.com"]
+    resources: ["etherealpods/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: etherealpod-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: etherealpod-controller
+subjects:
+  - kind: ServiceAccount
+    name: etherealpod-controller
+    namespace: etherealpod-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etherealpod-controller
+  namespace: etherealpod-system
+  labels:
+    app: etherealpod-controller
+    component: controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: etherealpod-controller
+  template:
+    metadata:
+      labels:
+        app: etherealpod-controller
+        component: controller
+    spec:
+      serviceAccountName: etherealpod-controller
+      containers:
+        - name: controller
+          image: etherealpod-controller:latest
+          imagePullPolicy: IfNotPresent
+          command: ["./controller"]
+          args:
+            - -v=2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "ps aux | grep controller | grep -v grep"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "ps aux | grep controller | grep -v grep"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      terminationGracePeriodSeconds: 10

@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etherealpod-controller
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: etherealpod-controller
+  template:
+    metadata:
+      labels:
+        app: etherealpod-controller
+    spec:
+      serviceAccountName: etherealpod-controller
+      containers:
+        - name: controller
+          image: etherealpod-controller:latest
+          imagePullPolicy: Never
+          command: ["/controller"]
+          args: ["-v=2"]
