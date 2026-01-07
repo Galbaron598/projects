@@ -1,0 +1,8 @@
+version: "3.9"
+
+services:
+  sunday_app:
+    build: .
+    container_name: sunday_app
+    ports:
+      - "8000:8000"
