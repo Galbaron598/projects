@@ -1,10 +1,11 @@
 project:
-  name: SundayApp
-  description: "Simple Groceries Tracker API using FastAPI and SQLite (in-memory)."
-  author: "Gal Baron"
+  name: SundayApp-Persistent
+  description: "Self-healing, data-persistent Groceries Tracker API using FastAPI, SQLite, and Kubernetes PersistentVolumes."
+  author: Gal Baron
   language: python
   framework: fastapi
-  database: sqlite-in-memory
+  database: sqlite-file-based
+  storage: kubernetes-persistent-volume
 
 execution:
   entrypoint: "uvicorn sunday_app:app --host 0.0.0.0 --port 8000"
@@ -15,7 +16,17 @@ docker:
   enabled: true
   image_name: sundayapp
   dockerfile: Dockerfile
-  run_command: "docker compose up --build"
+  run_command: "docker build -t sundayapp:latest ."
+
+kubernetes:
+  enabled: true
+  persistence: true
+  pvc_name: sunday-data-pvc
+  storage_size: 1Gi
+  mount_path: /data
+  database_path: /data/sunday.db
+  deployment_method: etherealpod
+  deployment_file: sunday-etherealpod.yaml
 
 api_endpoints:
   - method: POST
@@ -37,17 +48,64 @@ api_endpoints:
     path: /list_all
     description: "List all USER : ELEMENT : NUMBER entries."
 
-files_included:
-  - README.md
-  - sunday_app.py
-  - users_data.py
-  - Dockerfile
-  - docker-compose.yml
-  - requirements.sh
-  - submission.yaml
+  - method: GET
+    path: /health
+    description: "Health check endpoint for Kubernetes probes."
 
-notes:
-  - "SQLite is in-memory; data resets on restart."
-  - "Mock users are stored in users_data.py."
-  - "Names and product elements must be lowercase letters only."
-  - "POST must be used for /write — GET returns 405."
+files_included:
+  - README.md                    # Main documentation (UPDATED)
+  - sunday_app.py                # FastAPI application (UPDATED for persistence)
+  - users_data.py                # Static user mappings
+  - Dockerfile                   # Container image definition
+  - requirements.sh              # Python dependencies
+  - sunday-pvc.yaml              # PersistentVolumeClaim definition (NEW)
+  - sunday-etherealpod.yaml      # EtherealPod deployment spec (NEW)
+  - DEPLOYMENT_GUIDE.md          # Detailed deployment walkthrough (NEW)
+  - PVC_EXPLAINED.md             # PVC concept explanation (NEW)
+  - submission.yaml              # This file (UPDATED)
+
+architecture:
+  components:
+    - name: Sunday App Pod
+      type: application
+      managed_by: EtherealPod controller
+      persistence: PersistentVolumeClaim
+      
+    - name: EtherealPod
+      type: custom-resource
+      purpose: Self-healing pod management
+      location: Part A submission
+      
+    - name: PersistentVolumeClaim
+      type: storage
+      size: 1Gi
+      access_mode: ReadWriteOnce
+      purpose: Data persistence
+
+  data_flow:
+    - "Client → HTTP Request → Sunday App Pod"
+    - "Sunday App → SQLite → /data/sunday.db"
+    - "/data/sunday.db → PersistentVolume (disk storage)"
+    - "Pod crashes → EtherealPod recreates pod"
+    - "New pod → Mounts same PVC → Data restored ✅"
+
+deployment:
+  steps:
+    1: "Build Docker image: docker build -t sundayapp:latest ."
+    2: "Apply PVC: kubectl apply -f sunday-pvc.yaml"
+    3: "Deploy with EtherealPod: kubectl apply -f sunday-etherealpod.yaml"
+    4: "Access API: kubectl port-forward sunday-app-ep-pod 8000:8000"
+
+testing:
+  data_persistence:
+    - "Add data via API"
+    - "Delete pod: kubectl delete pod sunday-app-ep-pod"
+    - "Wait for EtherealPod to recreate"
+    - "Verify data still exists ✅"
+
+assignment_compliance:
+  must_always_be_up: "✅ EtherealPod automatically recreates crashed pods"
+  recover_from_failures: "✅ Self-healing via EtherealPod controller"
+  never_lose_data: "✅ Data persisted on PersistentVolume, survives pod restarts"
+  data_model: "✅ USER : ELEMENT : NUMBER format via /list_all endpoint"
+

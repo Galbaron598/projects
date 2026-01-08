@@ -1,549 +1,555 @@
-# 🍎 SundayApp — Groceries Tracker API
+# 🍎 SundayApp — Groceries Tracker with Persistent Storage
 
-> A simple REST API for tracking items employees depend on (coffee, yogurt, apples, etc.)
+> A self-healing, data-persistent REST API for tracking items employees depend on (coffee, yogurt, apples, etc.)
 
-This project implements **Part B — Sunday App** of the assignment. It follows the required data model:
+## ⚡ Key Features
 
-```
-USER : ELEMENT : NUMBER
-```
-
-**Examples:**
-```
-loki : apple : 1
-thor : beer  : 3
-```
-
-Under the hood, the API uses SQLite (in-memory) and a static mock user table to resolve `user_id → user_name` while exposing the logical data model exactly as required.
+✅ **Never Lose Data** — Uses PersistentVolume for data storage  
+✅ **Self-Healing** — Managed by EtherealPod controller  
+✅ **Auto-Recovery** — Pods automatically recreated after crashes  
+✅ **REST API** — FastAPI with OpenAPI documentation  
+✅ **Simple Deployment** — Docker + Kubernetes ready  
 
 ---
 
-## 📌 Features
+## 🎯 Assignment Compliance
 
-- ✅ **Add Items** — Add grocery items for users
-- ✅ **Get Totals** — Get total amount of a product across all users
-- ✅ **Delete Products** — Remove a product for all users
-- ✅ **List All** — Return full logical model (USER : ELEMENT : NUMBER)
-- ✅ **Zero Setup** — Uses in-memory SQLite (no configuration needed)
-- ✅ **Docker Ready** — Includes Dockerfile + Docker Compose for easy deployment
-- ✅ **Mock Users** — Static user table of 10 predefined users
+This project fulfills **Part B: Sunday App** requirements:
+
+| Requirement | Implementation | Status |
+|-------------|----------------|--------|
+| Must always be up | EtherealPod controller monitors and recreates pods | ✅ |
+| Recover from failures | Automatic pod recreation on crash/deletion | ✅ |
+| Never lose data | SQLite + PersistentVolumeClaim | ✅ |
+| Data model: USER:ELEMENT:NUMBER | Implemented via `/list_all` endpoint | ✅ |
 
 ---
 
-## 🚀 Quick Start
+## 🏗️ Architecture
 
-The fastest way to run the application is with Docker Compose:
+```
+┌─────────────────────────────────────────────────────────────┐
+│  EtherealPod Controller (Part A)                            │
+│  Monitors: sunday-app-ep                                    │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ watches & recreates
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Sunday App Pod                                             │
+│  ┌──────────────────────────────────────────────┐           │
+│  │  FastAPI Application (sunday_app.py)         │           │
+│  │  - Handles HTTP requests                     │           │
+│  │  - Manages grocery data                      │           │
+│  └────────────────┬─────────────────────────────┘           │
+│                   │ reads/writes                            │
+│                   ↓                                          │
+│  ┌──────────────────────────────────────────────┐           │
+│  │  /data/sunday.db (SQLite database)           │           │
+│  │  Mounted from PersistentVolumeClaim          │           │
+│  └──────────────────────────────────────────────┘           │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ persisted to
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│  PersistentVolumeClaim: sunday-data-pvc                     │
+│  - Stores database file persistently                        │
+│  - Survives pod restarts/crashes                            │
+│  - 1GB storage capacity                                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Data Flow:**
+1. User makes API request → Sunday App Pod
+2. App writes to → `/data/sunday.db`
+3. File stored on → PersistentVolume (disk)
+4. Pod crashes → EtherealPod recreates it
+5. New pod mounts → Same PersistentVolume
+6. Data intact! ✅
+
+---
+
+## 📋 Prerequisites
+
+- ✅ Kubernetes cluster (v1.20+)
+- ✅ `kubectl` configured
+- ✅ Docker installed
+- ✅ EtherealPod CRD and controller deployed (from Part A)
+
+---
+
+## 🚀 Complete Testing Workflow
+
+### ⚠️ Important: Deploy Part A First!
+
+This Sunday App (Part B) **requires** the EtherealPod controller from Part A to be running first.
+
+### Phase 1: Deploy EtherealPod Controller (Part A)
+
+**Navigate to the EtherealPod folder and deploy the controller:**
 
 ```bash
-docker-compose up
+cd /path/to/EtherealPod/
+
+# Option A: Use the quick deploy script (RECOMMENDED)
+chmod +x quick-deploy.sh
+./quick-deploy.sh
 ```
 
-Access the API at: **http://127.0.0.1:8000**
+**OR manually:**
 
-View interactive docs at: **http://127.0.0.1:8000/docs**
+```bash
+# Option B: Manual deployment
+kubectl apply -f etherealpod-crd.yaml
+kubectl apply -f rbac.yaml
+docker build -t etherealpod-controller:latest .
+kubectl apply -f controller-deployment.yaml
+```
+
+**Verify the controller is running:**
+
+```bash
+kubectl get pods -l app=etherealpod-controller
+or
+kubectl get pods -n etherealpod-system
+```
+
+Expected output:
+```
+NAME                                     READY   STATUS    RESTARTS   AGE
+etherealpod-controller-xxxxxxxxxx-xxxxx   1/1     Running   0          30s
+```
+
+✅ **Controller is ready!** Now proceed to Part B.
 
 ---
 
-## 🧠 Data Model
+### Phase 2: Deploy Sunday App (Part B)
 
-### Logical Model (Required Format)
+**Navigate to the Sunday App folder:**
 
-The assignment defines the logical data model as:
-
-```
-USER : ELEMENT : NUMBER
+```bash
+cd /path/to/Sunday\ App/
 ```
 
-This API outputs exactly this format via the `/list_all` endpoint.
+**Step 1: Build the Docker Image**
 
-**Example Response:**
+```bash
+docker build -t sundayapp:latest .
+```
 
+**Step 2: Deploy Storage and App**
+
+```bash
+# Create the PersistentVolumeClaim
+kubectl apply -f sunday-pvc.yaml
+
+# Verify PVC is bound
+kubectl get pvc sunday-data-pvc
+# Should show STATUS: Bound
+
+# Deploy SundayApp with EtherealPod
+kubectl apply -f sunday-etherealpod.yaml
+
+# Wait for pod to be ready
+kubectl wait --for=condition=ready pod -l app=sunday-app --timeout=90s
+```
+
+**Verify deployment:**
+
+```bash
+kubectl get pods | grep sunday
+```
+
+Expected output:
+```
+sunday-app-ep-pod   1/1     Running   0          20s
+```
+
+✅ **Sunday App is running!**
+
+---
+
+### Phase 3: Test the API
+
+**Terminal 1: Start Port Forwarding**
+
+```bash
+# Forward port 8000 to your local machine
+kubectl port-forward sunday-app-ep-pod 8000:8000
+or
+kubectl port-forward pod/sunday-app-ep-pod 8000:8000
+
+```
+
+Keep this terminal open!
+
+**Terminal 2: Test API Endpoints**
+
+Open a new terminal and run:
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Add some data
+curl -X POST "http://localhost:8000/write?user_id=1&product_name=coffee&amount=5"
+curl -X POST "http://localhost:8000/write?user_id=2&product_name=beer&amount=3"
+
+# Verify data
+curl http://localhost:8000/list_all
+```
+
+Expected output:
 ```json
 [
-  {"user": "loki", "element": "apple", "number": 1},
-  {"user": "thor", "element": "beer", "number": 3}
+  {"user":"loki","element":"coffee","number":5},
+  {"user":"thor","element":"beer","number":3}
 ]
 ```
 
-### Internal Architecture
+✅ **API is working!**
 
-To support correctness and realistic behavior, the app internally uses two tables:
-
-#### Table: `users` (Static Mock Data)
-
-| user_id | user_name |
-|---------|-----------|
-| 1 | loki |
-| 2 | thor |
-| 3 | hulk |
-| 4 | natasha |
-| 5 | steve |
-| 6 | tony |
-| 7 | bruce |
-| 8 | clint |
-| 9 | wanda |
-| 10 | sam |
-
-> 📝 **Note:** These mappings are located in `users_data.py`
-
-
-#### Table: `groceries`
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `user_id` | INT | Foreign key to users table |
-| `product_name` | TEXT | Name of the product |
-| `amount` | INT | Quantity of the product |
-
-**Primary Key:** `(user_id, product_name)`
-
-**Data Model Mapping:**
-- `USER` = user_name
-- `ELEMENT` = product_name
-- `NUMBER` = amount
+Visit **http://localhost:8000/docs** for interactive API documentation.
 
 ---
 
-## 🐳 Running with Docker
+### Phase 4: Test Data Persistence (Critical Test!)
 
-### Option 1: Docker Compose (Recommended)
+This test proves data survives pod crashes.
 
-The easiest way to run the application!
+**Terminal 1: Stop port forward** (press Ctrl+C)
 
-**Start the application:**
-
-```bash
-docker-compose up
-```
-
-**Run in detached mode:**
+**Terminal 2: Simulate pod crash**
 
 ```bash
-docker-compose up -d
+# Delete the pod
+kubectl delete pod sunday-app-ep-pod
+
+# Watch EtherealPod automatically recreate it
+kubectl get pods -w
 ```
 
-**Stop the application:**
+You'll see the pod terminating and a new one being created. Press Ctrl+C when the new pod is Running.
+
+**Wait for the new pod to be ready:**
 
 ```bash
-docker-compose down
+kubectl wait --for=condition=ready pod -l app=sunday-app --timeout=90s
 ```
 
-**Rebuild after changes:**
+**Terminal 1: Port forward to the NEW pod**
 
 ```bash
-docker-compose up --build
+kubectl port-forward sunday-app-ep-pod 8000:8000
 ```
 
-**View logs:**
+**Terminal 2: Check if data survived**
 
 ```bash
-docker-compose logs -f
+curl http://localhost:8000/list_all
 ```
 
-The API will be available at: **http://127.0.0.1:8000**
-
-### Option 2: Docker (without Compose)
-
-**Build the container:**
-
-```bash
-docker build -t sunday_app .
+**Expected output (SAME data as before):**
+```json
+[
+  {"user":"loki","element":"coffee","number":5},
+  {"user":"thor","element":"beer","number":3}
+]
 ```
 
-**Run the container:**
-
-```bash
-docker run -p 8000:8000 sunday_app
-```
-
-The API will be available at: **http://127.0.0.1:8000**
-
----
-
-## 💻 Running Locally (without Docker)
-
-### Prerequisites
-
-- Python 3.8+
-- pip
-
-### Installation
-
-**Install dependencies:**
-
-```bash
-pip install fastapi uvicorn
-```
-
-Or using pip3:
-
-```bash
-pip3 install fastapi uvicorn
-```
-
-### Run the API
-
-**Start the server:**
-
-```bash
-uvicorn sunday_app:app --reload
-```
-
-The server will start at: **http://127.0.0.1:8000**
-
-**Custom port:**
-
-```bash
-uvicorn sunday_app:app --port 8080
-```
+🎉 **SUCCESS! Data survived the pod restart!** This proves:
+- ✅ EtherealPod recreated the pod automatically
+- ✅ Data was stored on PersistentVolume
+- ✅ New pod mounted the same storage
+- ✅ **No data was lost!**
 
 ---
 
 ## 📬 API Endpoints
 
 ### POST `/write`
-
 Add or increase product amount for a user.
 
-**Query Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `user_id` | int | Yes | User identifier (1-10) |
-| `product_name` | str | Yes | Product name (lowercase) |
-| `amount` | int | Yes | Quantity (must be > 0) |
-
-**Example:**
-
 ```bash
-curl -X POST "http://127.0.0.1:8000/write?user_id=1&product_name=apple&amount=1"
+curl -X POST "http://localhost:8000/write?user_id=1&product_name=apple&amount=2"
 ```
 
 **Response:**
-
 ```json
-{"message": "Updated apple for user loki"}
+{"message": "ok", "user": "loki", "element": "apple", "number": 2}
 ```
-
----
 
 ### GET `/get_product_amount`
-
 Get total amount of a product across all users.
 
-**Query Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `product_name` | str | Yes | Product name to query |
-
-**Example:**
-
 ```bash
-curl "http://127.0.0.1:8000/get_product_amount?product_name=apple"
+curl "http://localhost:8000/get_product_amount?product_name=coffee"
 ```
 
 **Response:**
-
 ```json
-{"product_name": "apple", "total_amount": 5}
+{"product_name": "coffee", "amount": 12}
 ```
-
----
 
 ### DELETE `/delete_product`
-
 Remove a product for all users.
 
-**Query Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `product_name` | str | Yes | Product name to delete |
-
-**Example:**
-
 ```bash
-curl -X DELETE "http://127.0.0.1:8000/delete_product?product_name=apple"
+curl -X DELETE "http://localhost:8000/delete_product?product_name=apple"
 ```
 
 **Response:**
-
 ```json
-{"message": "Deleted apple for all users"}
+{"message": "ok", "product_name": "apple", "deleted_rows": 3}
 ```
-
----
 
 ### GET `/list_all`
-
-Return the complete logical model: **USER : ELEMENT : NUMBER**
-
-**Example:**
+Return complete data model: **USER : ELEMENT : NUMBER**
 
 ```bash
-curl "http://127.0.0.1:8000/list_all"
+curl "http://localhost:8000/list_all"
 ```
 
 **Response:**
-
 ```json
 [
-  {"user": "loki", "element": "apple", "number": 1},
-  {"user": "thor", "element": "beer", "number": 3},
-  {"user": "hulk", "element": "coffee", "number": 2}
+  {"user": "loki", "element": "coffee", "number": 5},
+  {"user": "thor", "element": "beer", "number": 3}
 ]
 ```
 
----
-
-## 🧪 Manual Testing Guide
-
-### Complete Testing Workflow
-
-**1. Add items for multiple users:**
+### GET `/health`
+Health check for Kubernetes liveness/readiness probes.
 
 ```bash
-# Add apple for loki
-curl -X POST "http://127.0.0.1:8000/write?user_id=1&product_name=apple&amount=1"
-
-# Add beer for thor
-curl -X POST "http://127.0.0.1:8000/write?user_id=2&product_name=beer&amount=3"
-
-# Add more apples for hulk
-curl -X POST "http://127.0.0.1:8000/write?user_id=3&product_name=apple&amount=2"
-
-# Add coffee for steve
-curl -X POST "http://127.0.0.1:8000/write?user_id=5&product_name=coffee&amount=1"
+curl "http://localhost:8000/health"
 ```
 
-**2. Query product totals:**
-
-```bash
-# Get total beer across all users
-curl "http://127.0.0.1:8000/get_product_amount?product_name=beer"
-
-# Get total apples
-curl "http://127.0.0.1:8000/get_product_amount?product_name=apple"
-```
-
-**3. List all entries:**
-
-```bash
-curl "http://127.0.0.1:8000/list_all"
-```
-
-**4. Delete a product:**
-
-```bash
-# Delete apple for all users
-curl -X DELETE "http://127.0.0.1:8000/delete_product?product_name=apple"
-
-# Verify deletion
-curl "http://127.0.0.1:8000/list_all"
-```
-
----
-
-## 🎯 Example Use Cases
-
-### Scenario 1: Office Coffee Tracking
-
-```bash
-# Everyone wants coffee!
-curl -X POST "http://127.0.0.1:8000/write?user_id=1&product_name=coffee&amount=2"
-curl -X POST "http://127.0.0.1:8000/write?user_id=5&product_name=coffee&amount=1"
-curl -X POST "http://127.0.0.1:8000/write?user_id=6&product_name=coffee&amount=3"
-
-# Check total coffee needed
-curl "http://127.0.0.1:8000/get_product_amount?product_name=coffee"
-# Output: {"product_name": "coffee", "total_amount": 6}
-```
-
-### Scenario 2: Team Event Planning
-
-```bash
-# Thor wants beer for the team event
-curl -X POST "http://127.0.0.1:8000/write?user_id=2&product_name=beer&amount=6"
-
-# Tony also wants beer
-curl -X POST "http://127.0.0.1:8000/write?user_id=6&product_name=beer&amount=4"
-
-# Check total beer needed
-curl "http://127.0.0.1:8000/get_product_amount?product_name=beer"
-# Output: {"product_name": "beer", "total_amount": 10}
-```
-
-### Scenario 3: Remove Out-of-Stock Item
-
-```bash
-# Apples are no longer available, remove from list
-curl -X DELETE "http://127.0.0.1:8000/delete_product?product_name=apple"
-
-# Verify removal
-curl "http://127.0.0.1:8000/list_all"
-```
-
----
-
-## 🧩 Design Decisions
-
-### 1. Normalized Schema
-
-The logical model is flat (`USER : ELEMENT : NUMBER`), but using a normalized schema provides:
-
-- **Unique user identity** via `user_id`
-- **Support for duplicate names** (e.g., two employees named "loki")
-- **Efficient joins** and data relationships
-- **Scalability** for future enhancements
-- **Data integrity** through foreign key constraints
-
-### 2. Static User Table
-
-The assignment doesn't require user management, so user data is loaded from a static mapping file: **`users_data.py`**
-
-**Benefits:**
-- Keeps the API simple and focused
-- Deterministic and predictable behavior
-- Easy to understand and maintain
-- No complex user authentication needed
-
-### 3. In-memory SQLite
-
-**Why SQLite in-memory?**
-
-- ✅ Zero setup required
-- ✅ Supports SQL constraints & joins
-- ✅ Perfect for self-contained demos/tests
-- ✅ Production-like database behavior
-- ✅ Easy to reset and test
-- ✅ Lightweight and fast
-
-**Trade-off:** Data is lost when the server restarts. This is acceptable for a demo/assignment but not for production use.
-
-### 4. FastAPI Framework
-
-FastAPI was chosen for its:
-
-- ✅ Clean request validation with Pydantic
-- ✅ Automatic interactive documentation
-- ✅ Excellent developer experience
-- ✅ Modern Python async support
-- ✅ Type hints and automatic validation
-- ✅ High performance
-
-### 5. Docker Support
-
-Docker deployment provides:
-
-- ✅ **Consistency** — Same environment everywhere
-- ✅ **Portability** — Run anywhere Docker is installed
-- ✅ **Isolation** — No dependency conflicts
-- ✅ **Easy deployment** — Single command to start
-- ✅ **Production-ready** — Can be deployed to any container platform
-
----
-
-## 🚨 Error Handling
-
-The API handles common errors gracefully:
-
-| Error | Status Code | Example | Response |
-|-------|-------------|---------|----------|
-| Invalid user_id | 400 | `user_id=99` | `{"detail": "Invalid user_id..."}` |
-| Invalid amount | 400 | `amount=0` | `{"detail": "Amount must be > 0"}` |
-| Product not found | 404 | Non-existent product | `{"product_name": "...", "total_amount": 0}` |
-| Missing parameters | 422 | Omitted required params | Validation error details |
-
----
-
-## 📊 Sample Data Scenarios
-
-<details>
-<summary><b>Click to view sample test data</b></summary>
-
-```bash
-# Populate sample data
-curl -X POST "http://127.0.0.1:8000/write?user_id=1&product_name=apple&amount=1"
-curl -X POST "http://127.0.0.1:8000/write?user_id=2&product_name=beer&amount=3"
-curl -X POST "http://127.0.0.1:8000/write?user_id=3&product_name=coffee&amount=2"
-curl -X POST "http://127.0.0.1:8000/write?user_id=4&product_name=yogurt&amount=5"
-curl -X POST "http://127.0.0.1:8000/write?user_id=5&product_name=apple&amount=2"
-curl -X POST "http://127.0.0.1:8000/write?user_id=6&product_name=beer&amount=1"
-
-# View all data
-curl "http://127.0.0.1:8000/list_all"
-```
-
-**Expected Output:**
-
+**Response:**
 ```json
-[
-  {"user": "loki", "element": "apple", "number": 1},
-  {"user": "thor", "element": "beer", "number": 3},
-  {"user": "hulk", "element": "coffee", "number": 2},
-  {"user": "natasha", "element": "yogurt", "number": 5},
-  {"user": "steve", "element": "apple", "number": 2},
-  {"user": "tony", "element": "beer", "number": 1}
-]
-```
-
-</details>
-
----
-## 🛠️ Development Tips
-
-### Hot Reload
-
-Use the `--reload` flag during development for automatic reloading:
-
-```bash
-uvicorn sunday_app:app --reload
-```
-
-### Custom Port
-
-Run on a different port:
-
-```bash
-uvicorn sunday_app:app --port 8080
-```
-
-### Docker Development
-
-Build and run with logs:
-
-```bash
-docker-compose up --build
-```
-
-Rebuild after code changes:
-
-```bash
-docker-compose down
-docker-compose up --build
-```
-
-View real-time logs:
-
-```bash
-docker-compose logs -f
+{"status": "healthy", "database": "/data/sunday.db"}
 ```
 
 ---
 
-## 🚀 Deployment
+## 🧠 Data Model
 
-### Docker Hub
+### Logical Model (API Response Format)
 
-Build and push to Docker Hub:
+```
+USER : ELEMENT : NUMBER
+```
+
+Example:
+```json
+{"user": "loki", "element": "coffee", "number": 5}
+```
+
+### Internal Schema
+
+**Table: users** (Static mock data)
+| user_id | user_name |
+|---------|-----------|
+| 1 | loki |
+| 2 | thor |
+| 3 | hulk |
+| ... | ... |
+
+**Table: groceries** (Persistent data)
+| user_id | product_name | amount |
+|---------|--------------|--------|
+| 1 | coffee | 5 |
+| 2 | beer | 3 |
+
+---
+
+## 🎨 Design Decisions
+
+###  ✅ PersistentVolumeClaim Benefits
+
+- **Survives pod deletion/crashes**
+- **Survives node failures** (with proper storage class)
+- **Easy backup/restore** (can copy database file)
+- **Production-ready pattern**
+
+### 3. ✅ EtherealPod Integration
+
+- Automatic pod recreation on crash
+- Tracks restart count
+- Ensures single active pod
+- Guarantees uptime
+
+### 4. ✅ Health Checks
+
+- Kubernetes liveness probes detect hung processes
+- Readiness probes ensure pod is ready before traffic
+- Auto-restart on failure
+
+---
+
+## 📁 Files Included
+
+
+## 🔍 Monitoring
+
+### Check Pod Status
+```bash
+kubectl get pods | grep sunday
+```
+
+### View Pod Logs
+```bash
+kubectl logs sunday-app-ep-pod
+```
+
+### Check EtherealPod Status
+```bash
+kubectl get etherealpods sunday-app-ep
+```
+
+### Check PVC Status
+```bash
+kubectl get pvc sunday-data-pvc
+```
+
+### Inspect Database File
+```bash
+kubectl exec -it sunday-app-ep-pod -- ls -lh /data/
+```
+
+---
+
+## 🧹 Cleanup
 
 ```bash
-docker build -t yourusername/sunday_app .
-docker push yourusername/sunday_app
+# Delete EtherealPod (also deletes managed pod)
+kubectl delete ep sunday-app-ep
+
+# Delete PVC (⚠️ WARNING: Deletes all data!)
+kubectl delete pvc sunday-data-pvc
 ```
+
+---
+
+## 🚨 Troubleshooting
+
+### Issue: "EtherealPod CRD not found" or "error: the server doesn't have a resource type 'etherealpods'"
+
+**Cause:** Part A (EtherealPod controller) is not deployed.
+
+**Solution:** Deploy the EtherealPod controller first:
+```bash
+cd /path/to/EtherealPod/
+./quick-deploy.sh
+```
+
+**Verify:**
+```bash
+kubectl get crd etherealpods.example.com
+kubectl get pods -l app=etherealpod-controller
+```
+
+### Issue: PVC stuck in "Pending"
+
+**Check:**
+```bash
+kubectl describe pvc sunday-data-pvc
+```
+
+**Solution:** Ensure your cluster has a storage provisioner or default StorageClass.
+
+**For minikube:**
+```bash
+minikube addons enable default-storageclass
+minikube addons enable storage-provisioner
+```
+
+**For kind:**
+```bash
+# Kind has default local storage, should work automatically
+kubectl get storageclass
+```
+
+### Issue: Pod won't start
+
+**Check:**
+```bash
+kubectl describe pod sunday-app-ep-pod
+kubectl logs sunday-app-ep-pod
+```
+
+**Common causes:**
+- Image not found (rebuild with `docker build -t sundayapp:latest .`)
+- PVC not bound (check `kubectl get pvc`)
+- EtherealPod controller not running
+- Insufficient cluster resources
+
+### Issue: Can't connect to localhost:8000
+
+**Check port-forward is running:**
+```bash
+ps aux | grep port-forward
+```
+
+**Solution:** Restart port-forward:
+```bash
+kubectl port-forward sunday-app-ep-pod 8000:8000
+```
+
+**Check pod is actually running:**
+```bash
+kubectl get pods | grep sunday
+# Should show: sunday-app-ep-pod   1/1     Running
+```
+
+### Issue: Data not persisting after pod restart
+
+**Check if volume is mounted:**
+```bash
+kubectl describe pod sunday-app-ep-pod | grep -A 5 Volumes
+```
+
+**Check database file exists:**
+```bash
+kubectl exec -it sunday-app-ep-pod -- ls -la /data/
+# Should show: sunday.db
+```
+
+**Check app is using correct path:**
+```bash
+kubectl exec -it sunday-app-ep-pod -- env | grep DB_PATH
+# Should show: DB_PATH=/data/sunday.db
+```
+
+### Issue: Database errors
+
+**Check permissions:**
+```bash
+kubectl exec -it sunday-app-ep-pod -- ls -la /data/
+```
+
+**Reset database:**
+```bash
+kubectl exec -it sunday-app-ep-pod -- rm /data/sunday.db
+kubectl delete pod sunday-app-ep-pod  # Will recreate with fresh DB
+```
+
+---
+
+
+## ✅ Assignment Requirements Checklist
+
+- [x] Always up (EtherealPod ensures uptime)
+- [x] Recover from failures automatically (Self-healing)
+- [x] Never lose data (PersistentVolume)
+- [x] REST API with required endpoints
+- [x] Correct data model (USER : ELEMENT : NUMBER)
+- [x] Docker deployment
+- [x] Kubernetes integration
+- [x] Documentation
+
 ---
 
 ## 📄 License
 
-This project is created for assignment purposes.
+Created for assignment purposes. Free to use and modify.

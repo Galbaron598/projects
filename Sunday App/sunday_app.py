@@ -1,13 +1,21 @@
 from fastapi import FastAPI, HTTPException
 import sqlite3
 from typing import List, Dict
+import os
 
 from users_data import STATIC_USERS  # <- mock users come from a separate file
 
 app = FastAPI(title="SundayApp - Grocery Tracker (USER : ELEMENT : NUMBER)")
 
-# Single in-memory SQLite DB for the process
-conn = sqlite3.connect(":memory:", check_same_thread=False)
+
+# The /data directory will be mounted as a PersistentVolume
+DB_PATH = os.getenv("DB_PATH", "/data/sunday.db")
+
+# Ensure the directory exists
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
+# Connect to file-based database (will be created if it doesn't exist)
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 conn.row_factory = sqlite3.Row
 
 
@@ -212,3 +220,10 @@ def list_all() -> List[Dict]:
         {"user": r["user_name"], "element": r["product_name"], "number": r["amount"]}
         for r in rows
     ]
+
+
+# NEW: Health check endpoint
+@app.get("/health")
+def health_check():
+    """Health check endpoint for Kubernetes"""
+    return {"status": "healthy", "database": DB_PATH}

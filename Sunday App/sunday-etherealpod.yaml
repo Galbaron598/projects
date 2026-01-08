@@ -1,0 +1,44 @@
+apiVersion: example.com/v1
+kind: EtherealPod
+metadata:
+  name: sunday-app-ep
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        app: sunday-app
+    spec:
+      containers:
+        - name: sunday-app
+          image: sundayapp:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          # Mount the persistent volume
+          volumeMounts:
+            - name: data-volume
+              mountPath: /data  # This is where /data/sunday.db will be stored
+          env:
+            - name: DB_PATH
+              value: "/data/sunday.db"
+          # Health checks
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      # Define the volume that references the PVC
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: sunday-data-pvc  # Reference to the PVC we created
+      restartPolicy: Always
