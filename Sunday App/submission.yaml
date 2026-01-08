@@ -1,0 +1,53 @@
+project:
+  name: SundayApp
+  description: "Simple Groceries Tracker API using FastAPI and SQLite (in-memory)."
+  author: "Your Name"
+  language: python
+  framework: fastapi
+  database: sqlite-in-memory
+
+execution:
+  entrypoint: "uvicorn sunday_app:app --host 0.0.0.0 --port 8000"
+  local_run:
+    - "python3 -m uvicorn sunday_app:app --reload"
+
+docker:
+  enabled: true
+  image_name: sundayapp
+  dockerfile: Dockerfile
+  run_command: "docker compose up --build"
+
+api_endpoints:
+  - method: POST
+    path: /write
+    params: ["user_id", "product_name", "amount"]
+    description: "Add or update a user's product amount."
+
+  - method: GET
+    path: /get_product_amount
+    params: ["product_name"]
+    description: "Get total amount of a product across all users."
+
+  - method: DELETE
+    path: /delete_product
+    params: ["product_name"]
+    description: "Delete product entries for all users."
+
+  - method: GET
+    path: /list_all
+    description: "List all USER : ELEMENT : NUMBER entries."
+
+files_included:
+  - README.md
+  - sunday_app.py
+  - users_data.py
+  - Dockerfile
+  - docker-compose.yml
+  - requirements.sh
+  - submission.yaml
+
+notes:
+  - "SQLite is in-memory; data resets on restart."
+  - "Mock users are stored in users_data.py."
+  - "Names and product elements must be lowercase letters only."
+  - "POST must be used for /write — GET returns 405."
