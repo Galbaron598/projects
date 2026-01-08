@@ -1,7 +1,7 @@
 project:
   name: SundayApp
   description: "Simple Groceries Tracker API using FastAPI and SQLite (in-memory)."
-  author: "Your Name"
+  author: "Gal Baron"
   language: python
   framework: fastapi
   database: sqlite-in-memory
