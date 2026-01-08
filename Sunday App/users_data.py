@@ -1,3 +1,4 @@
+# users_data.py
 # Static mock users table for SundayApp.
 # Maps internal user_id (int) to user_name (lowercase).
 

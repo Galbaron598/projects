@@ -16,24 +16,31 @@ thor : beer  : 3
 
 Under the hood, the API uses SQLite (in-memory) and a static mock user table to resolve `user_id → user_name` while exposing the logical data model exactly as required.
 
-<br>
-
 ---
 
 ## 📌 Features
 
-| Feature | Description |
-|---------|-------------|
-| ✅ **Add Items** | Add grocery items for users |
-| ✅ **Get Totals** | Get total amount of a product across all users |
-| ✅ **Delete Products** | Remove a product for all users |
-| ✅ **List All** | Return full logical model (USER : ELEMENT : NUMBER) |
-| ✅ **Zero Setup** | Uses in-memory SQLite (no configuration needed) |
-| ✅ **Complete Toolkit** | Includes Dockerfile + Docker Compose + Postman Collection + Tests |
-| ✅ **Clean Schema** | Normalized schema with FK constraints |
-| ✅ **Mock Users** | Static user table of 10 predefined users |
+- ✅ **Add Items** — Add grocery items for users
+- ✅ **Get Totals** — Get total amount of a product across all users
+- ✅ **Delete Products** — Remove a product for all users
+- ✅ **List All** — Return full logical model (USER : ELEMENT : NUMBER)
+- ✅ **Zero Setup** — Uses in-memory SQLite (no configuration needed)
+- ✅ **Docker Ready** — Includes Dockerfile + Docker Compose for easy deployment
+- ✅ **Mock Users** — Static user table of 10 predefined users
 
-<br>
+---
+
+## 🚀 Quick Start
+
+The fastest way to run the application is with Docker Compose:
+
+```bash
+docker-compose up
+```
+
+Access the API at: **http://127.0.0.1:8000**
+
+View interactive docs at: **http://127.0.0.1:8000/docs**
 
 ---
 
@@ -47,11 +54,7 @@ The assignment defines the logical data model as:
 USER : ELEMENT : NUMBER
 ```
 
-This API outputs exactly this format via:
-
-```bash
-GET /list_all
-```
+This API outputs exactly this format via the `/list_all` endpoint.
 
 **Example Response:**
 
@@ -62,15 +65,11 @@ GET /list_all
 ]
 ```
 
-<br>
-
----
-
-## 🗂 Internal Architecture
+### Internal Architecture
 
 To support correctness and realistic behavior, the app internally uses two tables:
 
-### ✔️ Table: `users` (Static Mock Data)
+#### Table: `users` (Static Mock Data)
 
 | user_id | user_name |
 |---------|-----------|
@@ -87,7 +86,8 @@ To support correctness and realistic behavior, the app internally uses two table
 
 > 📝 **Note:** These mappings are located in `users_data.py`
 
-### ✔️ Table: `groceries`
+
+#### Table: `groceries`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -97,105 +97,121 @@ To support correctness and realistic behavior, the app internally uses two table
 
 **Primary Key:** `(user_id, product_name)`
 
-### Data Model Mapping
-
-```
-USER    = user_name
-ELEMENT = product_name
-NUMBER  = amount
-```
-
-<br>
+**Data Model Mapping:**
+- `USER` = user_name
+- `ELEMENT` = product_name
+- `NUMBER` = amount
 
 ---
 
-## 🚀 Running the Application
+## 🐳 Running with Docker
 
-### Option 1: Docker Compose 🐳 (Recommended)
+### Option 1: Docker Compose (Recommended)
 
 The easiest way to run the application!
 
-#### 1. Start the Application
+**Start the application:**
 
 ```bash
 docker-compose up
 ```
 
-Or run in detached mode:
+**Run in detached mode:**
 
 ```bash
 docker-compose up -d
 ```
 
-#### 2. Access the Application
-
-Application now reachable at: **http://127.0.0.1:8000**
-
-#### 3. Stop the Application
+**Stop the application:**
 
 ```bash
 docker-compose down
 ```
 
-<br>
-
-### Option 2: Local Python
-
-#### 1. Install Dependencies
+**Rebuild after changes:**
 
 ```bash
-pip install fastapi uvicorn
-or
-pip3 install fastapi uvicorn
+docker-compose up --build
 ```
 
-#### 2. Run the API
+**View logs:**
 
 ```bash
-uvicorn sunday_app:app --reload
+docker-compose logs -f
 ```
 
-#### 3. Access the Server
+The API will be available at: **http://127.0.0.1:8000**
 
-Server starts at: **http://127.0.0.1:8000**
+### Option 2: Docker (without Compose)
 
-<br>
-
-### Option 3: Docker
-
-#### 1. Build the Container
+**Build the container:**
 
 ```bash
 docker build -t sunday_app .
 ```
 
-#### 2. Run the Container
+**Run the container:**
 
 ```bash
 docker run -p 8000:8000 sunday_app
 ```
 
-#### 3. Access the Application
+The API will be available at: **http://127.0.0.1:8000**
 
-Application now reachable at: **http://127.0.0.1:8000**
+---
 
-<br>
+## 💻 Running Locally (without Docker)
+
+### Prerequisites
+
+- Python 3.8+
+- pip
+
+### Installation
+
+**Install dependencies:**
+
+```bash
+pip install fastapi uvicorn
+```
+
+Or using pip3:
+
+```bash
+pip3 install fastapi uvicorn
+```
+
+### Run the API
+
+**Start the server:**
+
+```bash
+uvicorn sunday_app:app --reload
+```
+
+The server will start at: **http://127.0.0.1:8000**
+
+**Custom port:**
+
+```bash
+uvicorn sunday_app:app --port 8080
+```
 
 ---
 
 ## 📬 API Endpoints
 
-### 🔹 POST `/write`
+### POST `/write`
 
 Add or increase product amount for a user.
 
 **Query Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `user_id` | int | Identifies the user (1-10) |
-| `product_name` | str | Product name (lowercase only) |
-| `amount` | int | Quantity (must be > 0) |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `user_id` | int | Yes | User identifier (1-10) |
+| `product_name` | str | Yes | Product name (lowercase) |
+| `amount` | int | Yes | Quantity (must be > 0) |
 
 **Example:**
 
@@ -209,17 +225,17 @@ curl -X POST "http://127.0.0.1:8000/write?user_id=1&product_name=apple&amount=1"
 {"message": "Updated apple for user loki"}
 ```
 
-<br>
+---
 
-### 🔹 GET `/get_product_amount`
+### GET `/get_product_amount`
 
 Get total amount of a product across all users.
 
 **Query Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `product_name` | str | Product name to query |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `product_name` | str | Yes | Product name to query |
 
 **Example:**
 
@@ -233,17 +249,17 @@ curl "http://127.0.0.1:8000/get_product_amount?product_name=apple"
 {"product_name": "apple", "total_amount": 5}
 ```
 
-<br>
+---
 
-### 🔹 DELETE `/delete_product`
+### DELETE `/delete_product`
 
 Remove a product for all users.
 
 **Query Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `product_name` | str | Product name to delete |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `product_name` | str | Yes | Product name to delete |
 
 **Example:**
 
@@ -257,11 +273,11 @@ curl -X DELETE "http://127.0.0.1:8000/delete_product?product_name=apple"
 {"message": "Deleted apple for all users"}
 ```
 
-<br>
+---
 
-### 🔹 GET `/list_all`
+### GET `/list_all`
 
-Return the logical model: **USER : ELEMENT : NUMBER**
+Return the complete logical model: **USER : ELEMENT : NUMBER**
 
 **Example:**
 
@@ -279,45 +295,13 @@ curl "http://127.0.0.1:8000/list_all"
 ]
 ```
 
-<br>
-
 ---
 
-## 🧪 Testing
+## 🧪 Manual Testing Guide
 
-### Unit Tests
+### Complete Testing Workflow
 
-Tests are located in: **`test_sunday_app.py`**
-
-#### Run Tests
-
-```bash
-# Install pytest
-pip install pytest
-
-# Run tests
-pytest -q
-```
-
-### Test Coverage
-
-Tests cover:
-
-- ✅ Adding items
-- ✅ Summing product amounts
-- ✅ Deleting products
-- ✅ Listing all rows
-- ✅ Handling invalid/unknown user_id
-
-<br>
-
----
-
-## 🧪 Quick Manual Testing Guide
-
-### Step-by-Step Testing
-
-#### 1. Add Items
+**1. Add items for multiple users:**
 
 ```bash
 # Add apple for loki
@@ -328,9 +312,12 @@ curl -X POST "http://127.0.0.1:8000/write?user_id=2&product_name=beer&amount=3"
 
 # Add more apples for hulk
 curl -X POST "http://127.0.0.1:8000/write?user_id=3&product_name=apple&amount=2"
+
+# Add coffee for steve
+curl -X POST "http://127.0.0.1:8000/write?user_id=5&product_name=coffee&amount=1"
 ```
 
-#### 2. Get Product Totals
+**2. Query product totals:**
 
 ```bash
 # Get total beer across all users
@@ -340,13 +327,13 @@ curl "http://127.0.0.1:8000/get_product_amount?product_name=beer"
 curl "http://127.0.0.1:8000/get_product_amount?product_name=apple"
 ```
 
-#### 3. List All Entries
+**3. List all entries:**
 
 ```bash
 curl "http://127.0.0.1:8000/list_all"
 ```
 
-#### 4. Delete a Product
+**4. Delete a product:**
 
 ```bash
 # Delete apple for all users
@@ -355,100 +342,6 @@ curl -X DELETE "http://127.0.0.1:8000/delete_product?product_name=apple"
 # Verify deletion
 curl "http://127.0.0.1:8000/list_all"
 ```
-
-<br>
-
----
-
-## 📬 Postman Collection
-
-A complete Postman collection is included: **`SundayApp.postman_collection.json`**
-
-### How to Use
-
-1. Open Postman
-2. Click **Import**
-3. Select `SundayApp.postman_collection.json`
-4. All endpoints ready to test!
-
-<br>
-
----
-
-## 🧩 Design Decisions
-
-### ✔️ 1. Normalized Schema
-
-The logical model is flat (`USER : ELEMENT : NUMBER`), but using a normalized schema provides:
-
-- **Unique user identity** via `user_id`
-- **Support for duplicate names** (e.g., two employees named "loki")
-- **Efficient joins** and data relationships
-- **Scalability** for future enhancements
-
-### ✔️ 2. Static User Table
-
-The assignment doesn't require user management, so user data is loaded from a static mapping file: **`users_data.py`**
-
-**Benefits:**
-- Keeps the API simple and focused
-- Deterministic and predictable behavior
-- Easy to understand and maintain
-
-### ✔️ 3. In-memory SQLite
-
-**Why SQLite in-memory?**
-
-- ✅ Zero setup required
-- ✅ Supports SQL constraints & joins
-- ✅ Perfect for self-contained demos/tests
-- ✅ Production-like database behavior
-- ✅ Easy to reset and test
-
-### ✔️ 4. FastAPI Framework
-
-FastAPI provides:
-
-- ✅ Clean request validation
-- ✅ Automatic interactive docs (`/docs`)
-- ✅ Strong developer experience
-- ✅ Modern Python async support
-- ✅ Type hints and Pydantic models
-
-### ✔️ 5. Helper Endpoint `/list_all`
-
-The assignment requires output in the exact format:
-
-```
-USER : ELEMENT : NUMBER
-```
-
-The `/list_all` endpoint reconstructs this logical model by joining the `users` and `groceries` tables, ensuring the API contract matches the specification perfectly.
-
-<br>
-
----
-
-## 🔍 API Documentation
-
-FastAPI provides **automatic interactive documentation**:
-
-### Swagger UI (Recommended)
-
-Visit: **http://127.0.0.1:8000/docs**
-
-- Interactive API testing
-- Request/response examples
-- Schema validation
-
-### ReDoc (Alternative)
-
-Visit: **http://127.0.0.1:8000/redoc**
-
-- Clean documentation layout
-- Detailed API specifications
-
-<br>
 
 ---
 
@@ -467,75 +360,100 @@ curl "http://127.0.0.1:8000/get_product_amount?product_name=coffee"
 # Output: {"product_name": "coffee", "total_amount": 6}
 ```
 
-### Scenario 2: Beer for Team Event
+### Scenario 2: Team Event Planning
 
 ```bash
-# Thor wants beer
+# Thor wants beer for the team event
 curl -X POST "http://127.0.0.1:8000/write?user_id=2&product_name=beer&amount=6"
 
-# List everything
-curl "http://127.0.0.1:8000/list_all"
+# Tony also wants beer
+curl -X POST "http://127.0.0.1:8000/write?user_id=6&product_name=beer&amount=4"
+
+# Check total beer needed
+curl "http://127.0.0.1:8000/get_product_amount?product_name=beer"
+# Output: {"product_name": "beer", "total_amount": 10}
 ```
 
 ### Scenario 3: Remove Out-of-Stock Item
 
 ```bash
-# Apples are gone, remove from list
+# Apples are no longer available, remove from list
 curl -X DELETE "http://127.0.0.1:8000/delete_product?product_name=apple"
-```
 
-<br>
+# Verify removal
+curl "http://127.0.0.1:8000/list_all"
+```
 
 ---
 
-## 🛠️ Development Tips
+## 🧩 Design Decisions
 
-### Hot Reload
+### 1. Normalized Schema
 
-Use `--reload` flag for development:
+The logical model is flat (`USER : ELEMENT : NUMBER`), but using a normalized schema provides:
 
-```bash
-uvicorn sunday_app:app --reload
-```
+- **Unique user identity** via `user_id`
+- **Support for duplicate names** (e.g., two employees named "loki")
+- **Efficient joins** and data relationships
+- **Scalability** for future enhancements
+- **Data integrity** through foreign key constraints
 
-### Custom Port
+### 2. Static User Table
 
-Run on a different port:
+The assignment doesn't require user management, so user data is loaded from a static mapping file: **`users_data.py`**
 
-```bash
-uvicorn sunday_app:app --port 8080
-```
+**Benefits:**
+- Keeps the API simple and focused
+- Deterministic and predictable behavior
+- Easy to understand and maintain
+- No complex user authentication needed
 
-### Docker Compose Development
+### 3. In-memory SQLite
 
-Build and run with logs:
+**Why SQLite in-memory?**
 
-```bash
-docker-compose up --build
-```
+- ✅ Zero setup required
+- ✅ Supports SQL constraints & joins
+- ✅ Perfect for self-contained demos/tests
+- ✅ Production-like database behavior
+- ✅ Easy to reset and test
+- ✅ Lightweight and fast
 
-View logs:
+**Trade-off:** Data is lost when the server restarts. This is acceptable for a demo/assignment but not for production use.
 
-```bash
-docker-compose logs -f
-```
+### 4. FastAPI Framework
 
-Rebuild after changes:
+FastAPI was chosen for its:
 
-```bash
-docker-compose down
-docker-compose up --build
-```
+- ✅ Clean request validation with Pydantic
+- ✅ Automatic interactive documentation
+- ✅ Excellent developer experience
+- ✅ Modern Python async support
+- ✅ Type hints and automatic validation
+- ✅ High performance
 
-### Docker Development (without Compose)
+### 5. Docker Support
 
-Build and run with logs:
+Docker deployment provides:
 
-```bash
-docker build -t sunday_app . && docker run -p 8000:8000 sunday_app
-```
+- ✅ **Consistency** — Same environment everywhere
+- ✅ **Portability** — Run anywhere Docker is installed
+- ✅ **Isolation** — No dependency conflicts
+- ✅ **Easy deployment** — Single command to start
+- ✅ **Production-ready** — Can be deployed to any container platform
 
-<br>
+---
+
+## 🚨 Error Handling
+
+The API handles common errors gracefully:
+
+| Error | Status Code | Example | Response |
+|-------|-------------|---------|----------|
+| Invalid user_id | 400 | `user_id=99` | `{"detail": "Invalid user_id..."}` |
+| Invalid amount | 400 | `amount=0` | `{"detail": "Amount must be > 0"}` |
+| Product not found | 404 | Non-existent product | `{"product_name": "...", "total_amount": 0}` |
+| Missing parameters | 422 | Omitted required params | Validation error details |
 
 ---
 
@@ -572,35 +490,60 @@ curl "http://127.0.0.1:8000/list_all"
 
 </details>
 
-<br>
+---
+## 🛠️ Development Tips
+
+### Hot Reload
+
+Use the `--reload` flag during development for automatic reloading:
+
+```bash
+uvicorn sunday_app:app --reload
+```
+
+### Custom Port
+
+Run on a different port:
+
+```bash
+uvicorn sunday_app:app --port 8080
+```
+
+### Docker Development
+
+Build and run with logs:
+
+```bash
+docker-compose up --build
+```
+
+Rebuild after code changes:
+
+```bash
+docker-compose down
+docker-compose up --build
+```
+
+View real-time logs:
+
+```bash
+docker-compose logs -f
+```
 
 ---
 
-## 🚨 Error Handling
+## 🚀 Deployment
 
-The API handles common errors gracefully:
+### Docker Hub
 
-| Error | Status Code | Example |
-|-------|-------------|---------|
-| Invalid user_id | 400 | `user_id=99` (not in 1-10) |
-| Invalid amount | 400 | `amount=0` or negative |
-| Product not found | 404 | Querying non-existent product |
-| Missing parameters | 422 | Omitting required query params |
+Build and push to Docker Hub:
 
-<br>
-
+```bash
+docker build -t yourusername/sunday_app .
+docker push yourusername/sunday_app
+```
 ---
 
 ## 📄 License
 
 This project is created for assignment purposes.
-
----
-
-<div align="center">
-
-**Made with ☕ for tracking office groceries**
-
-[View Docs](http://127.0.0.1:8000/docs) · [Report Bug](#) · [Request Feature](#)
-
-</div>
